@@ -7,9 +7,8 @@ import matplotlib.pyplot as plt
 from tensorflow.examples.tutorials.mnist import input_data
 
 
-def generator(z, training=True):
-    with tf.variable_scope('Generator', reuse=False):
-
+def generator(z, reuse=False, training=True):
+    with tf.variable_scope('Generator', reuse=reuse):
         # First layer - reshape to  4x4x1024  batch-normalized and relu activated
         dense_layer1 = tf.layers.dense(z, 1024 * 4 * 4)
         gen_layer1 = tf.reshape(dense_layer1, [-1, 4, 4, 1024])
@@ -37,7 +36,7 @@ def generator(z, training=True):
         return activation_layer5
 
 
-def discriminator(x, reuse, training=True):
+def discriminator(x, reuse=False, training=True):
     with tf.variable_scope('Discriminator', reuse=reuse):
         # First layer - conv to  32x32x128  with stride of 2 and same padding  leaky-relu activated
         disc_conv1 = tf.layers.conv2d(x, 128, [5, 5], strides=(2, 2), padding='SAME')
@@ -70,8 +69,10 @@ def leaky_relu(x):
     return tf.maximum(0.2 * x, x)
 
 
+
 def show_result(num_epoch, show=False, save=False, path='result.png'):
-    test_images = sess.run(generated, feed_dict={z: np.random.normal(0, 1, (25, 1, 1, 100)), training: False})
+    test_images = sess.run(generated,
+                           feed_dict={z: np.random.normal(0, 1, (25, 1, 1, 100)), training: False})
 
     size_figure_grid = 5
 
@@ -91,7 +92,6 @@ def show_result(num_epoch, show=False, save=False, path='result.png'):
 
     if save:
         plt.savefig(path)
-
     if show:
         plt.show()
     else:
@@ -100,56 +100,73 @@ def show_result(num_epoch, show=False, save=False, path='result.png'):
 
 # ----------------------------------------------------------------------------
 
+# Defining the models hyperparameters
 learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 128
 epochs = 5
-#weight_init_std = 0.02
 
+# The MNIST data-set
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 
+# Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
 x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name='X')
 training = tf.placeholder(dtype=tf.bool)
 
-generated = generator(z, training)
+# Define the Generator model
+generated = generator(z, training=training)
 
-disc_logits_real = discriminator(x, reuse=False)
+# Define the Generator model
+disc_logits_real = discriminator(x)
 disc_logits_fake = discriminator(generated, reuse=True)
 
+# Define labels for the discriminator training
 d_labels_real = tf.ones_like(disc_logits_real)
 d_labels_fake = tf.zeros_like(disc_logits_fake)
 
+# Define loss functions for the Discriminator
 d_loss_real_data = tf.nn.sigmoid_cross_entropy_with_logits(labels=d_labels_real, logits=disc_logits_real)
 d_loss_generated_data = tf.nn.sigmoid_cross_entropy_with_logits(labels=d_labels_fake, logits=disc_logits_fake)
-
 d_loss = tf.reduce_mean(d_loss_real_data + d_loss_generated_data)
 
-# loss of generator is to get discriminator say for every generated image that it is 1 - not fake
+# Define loss for generator
+# loss of generator is to get discriminator say for every generated image that it is "1" meaning not fake
 g_loss = tf.reduce_mean(
     tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(disc_logits_fake), logits=disc_logits_fake))
 
+# Define the different variables for the Generator and Discriminator separately
 all_vars = tf.trainable_variables()
 disc_vars = [var for var in all_vars if var.name.startswith('Discriminator')]
 generator_vars = [var for var in all_vars if var.name.startswith('Generator')]
 
-# optimizer for each network
+# Define optimizer for Generator and Discriminator
 disc_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(d_loss, var_list=disc_vars)
 gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss, var_list=generator_vars)
 
+# Create tf session and initalize all the variable
 sess = tf.InteractiveSession()
 tf.global_variables_initializer().run()
 
+# Create a tf saver to enable training check-points and try to restore from previous ckpt if exist
 saver = tf.train.Saver()
-try:
-    saver.restore(sess, "/tmp/model.ckpt")
-    print("Model restored.")
-except:
-    print("could not restore model, starting from scratch...")
+# try:
+#     saver.restore(sess, "/tmp/model.ckpt")
+#     print("Model restored.")
+# except:
+#     print("could not restore model, starting from scratch...")
 
+
+# Check if we are running on a GPU or CPU
+device_name = tf.test.gpu_device_name()
+if device_name == '/device:GPU:0':
+    print('\nGPU device found at: {}'.format(device_name))
+
+
+# Training of the model
 print('\nStarting training of the DCGAN model...')
-
 num_of_iterations = mnist.train.num_examples // batch_size
+
 for epoch in range(epochs):
     discriminator_losses = []
     generator_losses = []
@@ -159,10 +176,11 @@ for epoch in range(epochs):
             save_path = saver.save(sess, "/tmp/model.ckpt")
             print("Model saved in path: %s" % save_path)
 
-        z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))
+        z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
         x_batch = mnist.train.next_batch(batch_size)
-        x_ = tf.image.resize_images(x_batch[0], [64, 64]).eval()
+        x_ = tf.image.resize_images(x_batch[0], [64, 64]).eval()  # Resize images from 28x28 to 64x64
+        x_ = (x_ - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
 
         d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run([d_loss, g_loss, disc_optimizer, gen_optimizer],
                                                                      {x: x_, z: z_, training: True})
@@ -170,15 +188,16 @@ for epoch in range(epochs):
         discriminator_losses.append(d_loss1)
         generator_losses.append(g_loss1)
 
-    print('Training epoch number %d out of %d - loss_d: %.3f, loss_g: %.3f' % (
+    print('Training epoch number %d out of %d - discriminator loss is : %.3f, Generator loss is: %.3f' % (
         (epoch + 1), epochs, np.mean(discriminator_losses), np.mean(generator_losses)))
 
     train_results_dir = "train_results/"
     if not os.path.exists(train_results_dir):
         os.makedirs(train_results_dir)
 
-    show_result(epoch + 1, show=False, save=True, path='train_results/' + str(epoch + 1) + '.png')
-    print("path of images: train_results/" + str(epoch + 1) + '.png')
+    img_path = 'train_results/epoch' + str(epoch + 1) + '.png'
+    show_result(epoch, show=False, save=True, path=img_path)
+    print("path of images: " + img_path)
 
     save_path = saver.save(sess, "/tmp/model.ckpt")
     print("Model saved in path: %s" % save_path)
