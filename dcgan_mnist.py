@@ -70,11 +70,14 @@ def leaky_relu(x):
     return tf.maximum(0.2 * x, x)
 
 
+z_ = np.random.normal(0, 1, (16, 1, 1, 100))
 def save_train_result_image(epoch_num, show=False, path='img.png'):
     dims = 4
-    generated_images = sess.run(generated, feed_dict={z: np.random.normal(0, 1, (16, 1, 1, 100)), training: False})
+    generated_images = sess.run(generated, feed_dict={z: z_, training: False})
 
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
+    img_label = 'Generated images after {} training epoch'.format(epoch_num + 1)
+    figure.text(0.5, 0.05, img_label, ha='center')
 
     for iterator in range(dims * dims):
         i = iterator // dims
@@ -83,9 +86,6 @@ def save_train_result_image(epoch_num, show=False, path='img.png'):
         subplots[i, j].get_yaxis().set_visible(False)
         subplots[i, j].cla()
         subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64)), cmap='gray')
-
-    img_label = 'Generated image after {} training epoch'.format(epoch_num + 1)
-    figure.text(0.5, 0.05, img_label, ha='center')
 
     if show:
         plt.show()
@@ -100,7 +100,7 @@ def save_train_result_image(epoch_num, show=False, path='img.png'):
 learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 128
-epochs = 5
+epochs = 10
 
 # The MNIST data-set
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
@@ -138,8 +138,9 @@ disc_vars = [var for var in all_vars if var.name.startswith('Discriminator')]
 generator_vars = [var for var in all_vars if var.name.startswith('Generator')]
 
 # Define optimizer for Generator and Discriminator
-disc_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(d_loss, var_list=disc_vars)
-gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss, var_list=generator_vars)
+with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+    disc_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(d_loss, var_list=disc_vars)
+    gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss, var_list=generator_vars)
 
 # Create tf session and initalize all the variable
 sess = tf.InteractiveSession()
@@ -149,7 +150,7 @@ tf.global_variables_initializer().run()
 saver = tf.train.Saver()
 try:
     saver.restore(sess, "/tmp/model.ckpt")
-    print("Model restored.")
+    print("\nModel restored.")
 except:
     print("could not restore model, starting from scratch...")
 
@@ -160,7 +161,19 @@ if device_name == '/device:GPU:0':
 
 # Training of the model
 print('\nStarting training of the DCGAN model...')
-num_of_iterations = mnist.train.num_examples // (batch_size * 5)
+num_of_iterations = mnist.train.num_examples // (batch_size)
+
+
+# def show_img(batch,dims):
+#     with tf.Session() as sess:
+#         first_image = batch[1]
+#
+#         first_image = np.array(first_image, dtype='float32')
+#         pixels = first_image.reshape((dims, dims))
+#         plt.imshow(pixels, cmap='gray')
+#         plt.show()
+#
+
 
 for epoch in range(epochs):
     discriminator_losses = []
@@ -168,8 +181,8 @@ for epoch in range(epochs):
     for i in range(num_of_iterations):
         if i % 100 == 0:
             print('Training stats: iteration number %d/%d in epoch number %d' % (i, num_of_iterations, epoch + 1))
-            save_path = saver.save(sess, "/tmp/model.ckpt")
-            print("Model saved in path: %s" % save_path)
+            # save_path = saver.save(sess, "/tmp/model.ckpt")
+            # print("Model saved in path: %s" % save_path)
 
         z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
