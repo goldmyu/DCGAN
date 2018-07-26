@@ -1,4 +1,3 @@
-import itertools
 import os
 import tensorflow as tf
 import numpy as np
@@ -6,9 +5,11 @@ import matplotlib.pyplot as plt
 
 from tensorflow.examples.tutorials.mnist import input_data
 
+tf.reset_default_graph()
 
-def generator(z, reuse=False, training=True):
-    with tf.variable_scope('Generator', reuse=reuse):
+
+def generator(z, training=True):
+    with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
         # First layer - reshape to  4x4x1024  batch-normalized and relu activated
         dense_layer1 = tf.layers.dense(z, 1024 * 4 * 4)
         gen_layer1 = tf.reshape(dense_layer1, [-1, 4, 4, 1024])
@@ -37,7 +38,7 @@ def generator(z, reuse=False, training=True):
 
 
 def discriminator(x, reuse=False, training=True):
-    with tf.variable_scope('Discriminator', reuse=reuse):
+    with tf.variable_scope('Discriminator', reuse=tf.AUTO_REUSE):
         # First layer - conv to  32x32x128  with stride of 2 and same padding  leaky-relu activated
         disc_conv1 = tf.layers.conv2d(x, 128, [5, 5], strides=(2, 2), padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv1, training=training)
@@ -69,33 +70,28 @@ def leaky_relu(x):
     return tf.maximum(0.2 * x, x)
 
 
+def save_train_result_image(epoch_num, show=False, path='img.png'):
+    dims = 4
+    generated_images = sess.run(generated, feed_dict={z: np.random.normal(0, 1, (16, 1, 1, 100)), training: False})
 
-def show_result(num_epoch, show=False, save=False, path='result.png'):
-    test_images = sess.run(generated,
-                           feed_dict={z: np.random.normal(0, 1, (25, 1, 1, 100)), training: False})
+    figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
 
-    size_figure_grid = 5
+    for iterator in range(dims * dims):
+        i = iterator // dims
+        j = iterator % dims
+        subplots[i, j].get_xaxis().set_visible(False)
+        subplots[i, j].get_yaxis().set_visible(False)
+        subplots[i, j].cla()
+        subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64)), cmap='gray')
 
-    fig, ax = plt.subplots(size_figure_grid, size_figure_grid, figsize=(5, 5))
-    for i, j in itertools.product(range(size_figure_grid), range(size_figure_grid)):
-        ax[i, j].get_xaxis().set_visible(False)
-        ax[i, j].get_yaxis().set_visible(False)
+    img_label = 'Generated image after {} training epoch'.format(epoch_num + 1)
+    figure.text(0.5, 0.05, img_label, ha='center')
 
-    for k in range(size_figure_grid * size_figure_grid):
-        i = k // size_figure_grid
-        j = k % size_figure_grid
-        ax[i, j].cla()
-        ax[i, j].imshow(np.reshape(test_images[k], (64, 64)), cmap='gray')
-
-    label = 'Epoch {0}'.format(num_epoch)
-    fig.text(0.5, 0.04, label, ha='center')
-
-    if save:
-        plt.savefig(path)
     if show:
         plt.show()
-    else:
-        plt.close()
+
+    plt.savefig(path)
+    plt.close()
 
 
 # ----------------------------------------------------------------------------
@@ -113,6 +109,7 @@ mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
 x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name='X')
 training = tf.placeholder(dtype=tf.bool)
+reuse = tf.placeholder(dtype=tf.bool)
 
 # Define the Generator model
 generated = generator(z, training=training)
@@ -150,22 +147,20 @@ tf.global_variables_initializer().run()
 
 # Create a tf saver to enable training check-points and try to restore from previous ckpt if exist
 saver = tf.train.Saver()
-# try:
-#     saver.restore(sess, "/tmp/model.ckpt")
-#     print("Model restored.")
-# except:
-#     print("could not restore model, starting from scratch...")
-
+try:
+    saver.restore(sess, "/tmp/model.ckpt")
+    print("Model restored.")
+except:
+    print("could not restore model, starting from scratch...")
 
 # Check if we are running on a GPU or CPU
 device_name = tf.test.gpu_device_name()
 if device_name == '/device:GPU:0':
     print('\nGPU device found at: {}'.format(device_name))
 
-
 # Training of the model
 print('\nStarting training of the DCGAN model...')
-num_of_iterations = mnist.train.num_examples // batch_size
+num_of_iterations = mnist.train.num_examples // (batch_size * 5)
 
 for epoch in range(epochs):
     discriminator_losses = []
@@ -196,7 +191,7 @@ for epoch in range(epochs):
         os.makedirs(train_results_dir)
 
     img_path = 'train_results/epoch' + str(epoch + 1) + '.png'
-    show_result(epoch, show=False, save=True, path=img_path)
+    save_train_result_image(epoch, show=True, path=img_path)
     print("path of images: " + img_path)
 
     save_path = saver.save(sess, "/tmp/model.ckpt")
