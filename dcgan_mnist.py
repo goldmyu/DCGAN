@@ -173,10 +173,12 @@ processed_images = resize_and_normalize_data(mnist.train.images)
 for epoch in range(epochs):
     discriminator_losses = []
     generator_losses = []
+
+    np.random.shuffle(processed_images)  # shuffle the dataset to get random samples
+
     for i in range(num_of_iterations):
         z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
-        batch_idx = np.random.choice(processed_images.shape[0], batch_size, replace=False)
-        x_batch = processed_images[batch_idx]
+        x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
 
         d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run([d_loss, g_loss, disc_optimizer, gen_optimizer],
                                                                      {x: x_batch, z: z_, training: True})
