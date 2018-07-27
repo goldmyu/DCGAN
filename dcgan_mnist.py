@@ -62,7 +62,6 @@ def discriminator(x, reuse=False, training=True):
 
         # Output layer - conv to  1  sigmoid activated
         disc_conv5 = tf.layers.conv2d(disc_activation4, 1, [4, 4])
-        # disc_output = tf.nn.sigmoid(disc_conv5)
         return disc_conv5
 
 
@@ -148,11 +147,11 @@ tf.global_variables_initializer().run()
 
 # Create a tf saver to enable training check-points and try to restore from previous ckpt if exist
 saver = tf.train.Saver()
-try:
-    saver.restore(sess, "/tmp/model.ckpt")
-    print("\nModel restored.")
-except:
-    print("could not restore model, starting from scratch...")
+# try:
+#     saver.restore(sess, "/tmp/model.ckpt")
+#     print("\nModel restored.")
+# except:
+#     print("could not restore model, starting from scratch...")
 
 # Check if we are running on a GPU or CPU
 device_name = tf.test.gpu_device_name()
@@ -163,24 +162,13 @@ if device_name == '/device:GPU:0':
 print('\nStarting training of the DCGAN model...')
 num_of_iterations = mnist.train.num_examples // (batch_size)
 
-
-# def show_img(batch,dims):
-#     with tf.Session() as sess:
-#         first_image = batch[1]
-#
-#         first_image = np.array(first_image, dtype='float32')
-#         pixels = first_image.reshape((dims, dims))
-#         plt.imshow(pixels, cmap='gray')
-#         plt.show()
-#
-
-
 for epoch in range(epochs):
     discriminator_losses = []
     generator_losses = []
     for i in range(num_of_iterations):
         if i % 100 == 0:
-            print('Training stats: iteration number %d/%d in epoch number %d' % (i, num_of_iterations, epoch + 1))
+            print('Training stats: iteration number %d/%d in epoch number %d\nDicsrimnator loss is: %d\nGenerator '
+                  'loss is : %d' % (i, num_of_iterations, epoch + 1,np.mean(discriminator_losses),np.mean(generator_losses)))
             # save_path = saver.save(sess, "/tmp/model.ckpt")
             # print("Model saved in path: %s" % save_path)
 
