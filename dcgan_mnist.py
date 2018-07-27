@@ -150,11 +150,11 @@ tf.global_variables_initializer().run()
 
 # Create a tf saver to enable training check-points and try to restore from previous ckpt if exist
 saver = tf.train.Saver()
-# try:
-#     saver.restore(sess, "/tmp/model.ckpt")
-#     print("\nModel restored.")
-# except:
-#     print("could not restore model, starting from scratch...")
+try:
+    saver.restore(sess, "/tmp/model.ckpt")
+    print("\nModel restored.")
+except:
+    print("could not restore model, starting from scratch...")
 
 # Check if we are running on a GPU or CPU
 device_name = tf.test.gpu_device_name()
@@ -179,8 +179,8 @@ for epoch in range(epochs):
                                                                      {x: x_, z: z_, training: True})
 
         if i % 100 == 0:
-            print('Training stats: iteration number %d/%d in epoch number %d\nDiscriminator loss is: %d\nGenerator '
-                  'loss is : %d' % (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
+            print('Training stats: iteration number %d/%d in epoch number %d\nDiscriminator loss is: %.3f\nGenerator '
+                  'loss is : %.3f' % (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
 
         discriminator_losses.append(d_loss1)
         generator_losses.append(g_loss1)
