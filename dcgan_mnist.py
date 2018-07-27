@@ -73,11 +73,13 @@ def save_train_result_image(epoch_num, show=False, path='img.png'):
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
-
-    figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     img_label = 'Generated images after {} training epoch'.format(epoch_num + 1)
-    figure.text(0.5, 0.05, img_label, ha='center')
+    plot_and_save_images(dims, img_label, generated_images, path, show)
 
+
+def plot_and_save_images(dims, img_label, generated_images, path, show):
+    figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
+    figure.text(0.5, 0.05, img_label, ha='center')
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
@@ -85,10 +87,8 @@ def save_train_result_image(epoch_num, show=False, path='img.png'):
         subplots[i, j].get_yaxis().set_visible(False)
         subplots[i, j].cla()
         subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64)), cmap='gray')
-
     if show:
         plt.show()
-
     plt.savefig(path)
     plt.close()
 
@@ -96,6 +96,66 @@ def save_train_result_image(epoch_num, show=False, path='img.png'):
 def resize_and_normalize_data(mnist_imgs):
     imgs = tf.image.resize_images(mnist_imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
     return (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
+
+
+def restore_model_from_ckpt():
+    try:
+        saver.restore(sess, ckpt_path)
+        print("\nModel restored from latest checkpoint")
+    except:
+        print("could not restore model, starting from scratch...")
+
+
+def model_training():
+    # Training of the model
+    print('\nStarting training of the DCGAN model...')
+    num_of_iterations = mnist.train.num_examples // (batch_size)
+    processed_images = resize_and_normalize_data(mnist.train.images)
+    for epoch in range(epochs):
+        discriminator_losses = []
+        generator_losses = []
+
+        np.random.shuffle(processed_images)  # shuffle the dataset to get random samples
+
+        for i in range(num_of_iterations):
+            z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
+            x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
+
+            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run(
+                [d_loss, g_loss, disc_optimizer, gen_optimizer], {x: x_batch, z: z_, training: True})
+
+            if i % 100 == 0:
+                print(
+                    'Training stats: iteration number %d/%d in epoch number %d\nDiscriminator loss is: %.3f\nGenerator '
+                    'loss is : %.3f' % (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
+
+            discriminator_losses.append(d_loss1)
+            generator_losses.append(g_loss1)
+
+        print('Training epoch number %d out of %d - discriminator loss is : %.3f, Generator loss is: %.3f' % (
+            (epoch + 1), epochs, np.mean(discriminator_losses), np.mean(generator_losses)))
+
+        train_results_dir = "train_results/"
+        if not os.path.exists(train_results_dir):
+            os.makedirs(train_results_dir)
+
+        img_path = 'train_results/epoch' + str(epoch + 1) + '.png'
+        save_train_result_image(epoch, show=True, path=img_path)
+        print("path of images: " + img_path)
+
+        save_path = saver.save(sess, ckpt_path)
+        print("Model saved in path: %s" % save_path)
+
+
+def model_test():
+    z_test = np.random.normal(0, 1, (1000, 1, 1, 100))  # Create random noise z for Generator
+    disc, gen = sess.run([disc_logits_fake, generated], feed_dict={z: z_test, training: False})
+
+    print("Testing the model with 1000 generated images from the trained generator...\n"
+          "Our trained discriminator classified %.3f of them as real images." % np.mean(tf.sigmoid(disc).eval()) * 1000)
+
+    print("Plotting some of the generated images : ")
+    plot_and_save_images(6, "Generated images", gen, "test_img.png", True)
 
 
 # ----------------------------------------------------------------------------
@@ -153,55 +213,18 @@ tf.global_variables_initializer().run()
 
 # Create a tf saver to enable training check-points and try to restore from previous ckpt if exist
 saver = tf.train.Saver()
-try:
-    saver.restore(sess, "/tmp/model.ckpt")
-    print("\nModel restored.")
-except:
-    print("could not restore model, starting from scratch...")
+ckpt_path = "/tmp/model.ckpt"
+restore_model_from_ckpt()
 
 # Check if we are running on a GPU or CPU
 device_name = tf.test.gpu_device_name()
 if device_name == '/device:GPU:0':
     print('\nGPU device found at: {}'.format(device_name))
 
-# Training of the model
-print('\nStarting training of the DCGAN model...')
-num_of_iterations = mnist.train.num_examples // (batch_size)
+# Train the model
+model_training()
 
-processed_images = resize_and_normalize_data(mnist.train.images)
-
-for epoch in range(epochs):
-    discriminator_losses = []
-    generator_losses = []
-
-    np.random.shuffle(processed_images)  # shuffle the dataset to get random samples
-
-    for i in range(num_of_iterations):
-        z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
-        x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
-
-        d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run([d_loss, g_loss, disc_optimizer, gen_optimizer],
-                                                                     {x: x_batch, z: z_, training: True})
-
-        if i % 100 == 0:
-            print('Training stats: iteration number %d/%d in epoch number %d\nDiscriminator loss is: %.3f\nGenerator '
-                  'loss is : %.3f' % (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
-
-        discriminator_losses.append(d_loss1)
-        generator_losses.append(g_loss1)
-
-    print('Training epoch number %d out of %d - discriminator loss is : %.3f, Generator loss is: %.3f' % (
-        (epoch + 1), epochs, np.mean(discriminator_losses), np.mean(generator_losses)))
-
-    train_results_dir = "train_results/"
-    if not os.path.exists(train_results_dir):
-        os.makedirs(train_results_dir)
-
-    img_path = 'train_results/epoch' + str(epoch + 1) + '.png'
-    save_train_result_image(epoch, show=True, path=img_path)
-    print("path of images: " + img_path)
-
-    save_path = saver.save(sess, "/tmp/model.ckpt")
-    print("Model saved in path: %s" % save_path)
+# Test model performance
+model_test()
 
 sess.close()
