@@ -70,6 +70,8 @@ def leaky_relu(x):
 
 
 z_ = np.random.normal(0, 1, (16, 1, 1, 100))
+
+
 def save_train_result_image(epoch_num, show=False, path='img.png'):
     dims = 4
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
@@ -139,7 +141,8 @@ generator_vars = [var for var in all_vars if var.name.startswith('Generator')]
 # Define optimizer for Generator and Discriminator
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     disc_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(d_loss, var_list=disc_vars)
-    gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss, var_list=generator_vars)
+    gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
+                                                                                         var_list=generator_vars)
 
 # Create tf session and initalize all the variable
 sess = tf.InteractiveSession()
@@ -166,12 +169,6 @@ for epoch in range(epochs):
     discriminator_losses = []
     generator_losses = []
     for i in range(num_of_iterations):
-        if i % 100 == 0:
-            print('Training stats: iteration number %d/%d in epoch number %d\nDicsrimnator loss is: %d\nGenerator '
-                  'loss is : %d' % (i, num_of_iterations, epoch + 1,np.mean(discriminator_losses),np.mean(generator_losses)))
-            # save_path = saver.save(sess, "/tmp/model.ckpt")
-            # print("Model saved in path: %s" % save_path)
-
         z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
         x_batch = mnist.train.next_batch(batch_size)
@@ -180,6 +177,10 @@ for epoch in range(epochs):
 
         d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run([d_loss, g_loss, disc_optimizer, gen_optimizer],
                                                                      {x: x_, z: z_, training: True})
+
+        if i % 100 == 0:
+            print('Training stats: iteration number %d/%d in epoch number %d\nDiscriminator loss is: %d\nGenerator '
+                  'loss is : %d' % (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
 
         discriminator_losses.append(d_loss1)
         generator_losses.append(g_loss1)
