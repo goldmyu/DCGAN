@@ -69,11 +69,9 @@ def leaky_relu(x):
     return tf.maximum(0.2 * x, x)
 
 
-z_ = np.random.normal(0, 1, (16, 1, 1, 100))
-
-
 def save_train_result_image(epoch_num, show=False, path='img.png'):
     dims = 4
+    z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
 
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
@@ -93,6 +91,11 @@ def save_train_result_image(epoch_num, show=False, path='img.png'):
 
     plt.savefig(path)
     plt.close()
+
+
+def resize_and_normalize_data(mnist_imgs):
+    imgs = tf.image.resize_images(mnist_imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
+    return (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
 
 
 # ----------------------------------------------------------------------------
@@ -165,18 +168,18 @@ if device_name == '/device:GPU:0':
 print('\nStarting training of the DCGAN model...')
 num_of_iterations = mnist.train.num_examples // (batch_size)
 
+processed_images = resize_and_normalize_data(mnist.train.images)
+
 for epoch in range(epochs):
     discriminator_losses = []
     generator_losses = []
     for i in range(num_of_iterations):
         z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
-
-        x_batch = mnist.train.next_batch(batch_size)
-        x_ = tf.image.resize_images(x_batch[0], [64, 64]).eval()  # Resize images from 28x28 to 64x64
-        x_ = (x_ - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
+        batch_idx = np.random.choice(processed_images.shape[0], batch_size, replace=False)
+        x_batch = processed_images[batch_idx]
 
         d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run([d_loss, g_loss, disc_optimizer, gen_optimizer],
-                                                                     {x: x_, z: z_, training: True})
+                                                                     {x: x_batch, z: z_, training: True})
 
         if i % 100 == 0:
             print('Training stats: iteration number %d/%d in epoch number %d\nDiscriminator loss is: %.3f\nGenerator '
