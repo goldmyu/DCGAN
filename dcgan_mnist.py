@@ -43,7 +43,6 @@ def discriminator(x, training=True):
         disc_conv1 = tf.layers.conv2d(x, 128, [5, 5], strides=(2, 2), padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv1, training=training)
         disc_activation1 = leaky_relu(batch_norm_disc)
-        #         disc_activation1 = leaky_relu(disc_conv1)
 
         # Second layer - conv to  16x16x256  with stride of 2 and same padding, batch-normalized leaky-relu activated
         disc_conv2 = tf.layers.conv2d(disc_activation1, 256, [5, 5], strides=(2, 2), padding='SAME')
@@ -60,7 +59,7 @@ def discriminator(x, training=True):
         batch_norm_disc = tf.layers.batch_normalization(disc_conv4, training=training)
         disc_activation4 = leaky_relu(batch_norm_disc)
 
-        # Output layer - conv to  1  sigmoid activated
+        # Output layer - conv to 1x1x1
         disc_conv5 = tf.layers.conv2d(disc_activation4, 1, [4, 4])
         return disc_conv5
 
