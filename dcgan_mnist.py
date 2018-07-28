@@ -37,7 +37,7 @@ def generator(z, training=True):
         return activation_layer5
 
 
-def discriminator(x, reuse=False, training=True):
+def discriminator(x, training=True):
     with tf.variable_scope('Discriminator', reuse=tf.AUTO_REUSE):
         # First layer - conv to  32x32x128  with stride of 2 and same padding  leaky-relu activated
         disc_conv1 = tf.layers.conv2d(x, 128, [5, 5], strides=(2, 2), padding='SAME')
@@ -69,7 +69,7 @@ def leaky_relu(x):
     return tf.maximum(0.2 * x, x)
 
 
-def save_train_result_image(epoch_num, show=False, path='img.png'):
+def save_train_results(epoch_num, show=False, path='img.png'):
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
@@ -140,7 +140,7 @@ def model_training():
             os.makedirs(train_results_dir)
 
         img_path = 'train_results/epoch' + str(epoch + 1) + '.png'
-        save_train_result_image(epoch, show=True, path=img_path)
+        save_train_results(epoch, show=True, path=img_path)
         print("path of images: " + img_path)
 
         save_path = saver.save(sess, ckpt_path)
@@ -151,11 +151,13 @@ def model_test():
     z_test = np.random.normal(0, 1, (1000, 1, 1, 100))  # Create random noise z for Generator
     disc, gen = sess.run([disc_logits_fake, generated], feed_dict={z: z_test, training: False})
 
+    good_imgs = np.size(np.where(tf.sigmoid(disc).eval() > 0.5)[0])
+
     print("Testing the model with 1000 generated images from the trained generator...\n"
-          "Our trained discriminator classified %.3f of them as real images." % np.mean(tf.sigmoid(disc).eval()) * 1000)
+          "Our trained discriminator classified %.3f out of 1000 as real images." % good_imgs)
 
     print("Plotting some of the generated images : ")
-    plot_and_save_images(6, "Generated images", gen, "test_img.png", True)
+    plot_and_save_images(8, "Generated images", gen, "test_img.png", True)
 
 
 # ----------------------------------------------------------------------------
@@ -180,7 +182,7 @@ generated = generator(z, training=training)
 
 # Define the Generator model
 disc_logits_real = discriminator(x)
-disc_logits_fake = discriminator(generated, reuse=True)
+disc_logits_fake = discriminator(generated)
 
 # Define labels for the discriminator training
 d_labels_real = tf.ones_like(disc_logits_real)
