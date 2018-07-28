@@ -65,8 +65,8 @@ def discriminator(x, training=True):
         return disc_conv5
 
 
-def leaky_relu(x):
-    return tf.maximum(0.2 * x, x)
+def leaky_relu(x_):
+    return tf.maximum(0.2 * x_, x_)
 
 
 def save_train_results(epoch_num, show=False, path='img.png'):
@@ -162,7 +162,7 @@ def model_test():
 
 # ----------------------------------------------------------------------------
 
-# Defining the models hyperparameters
+# Defining the models hyper-parameters
 learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 128
@@ -175,39 +175,43 @@ mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
 x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name='X')
 training = tf.placeholder(dtype=tf.bool)
-reuse = tf.placeholder(dtype=tf.bool)
 
 # Define the Generator model
 generated = generator(z, training=training)
 
-# Define the Generator model
+
+# Define the Discriminator model
 disc_logits_real = discriminator(x)
 disc_logits_fake = discriminator(generated)
+
 
 # Define labels for the discriminator training
 d_labels_real = tf.ones_like(disc_logits_real)
 d_labels_fake = tf.zeros_like(disc_logits_fake)
+
+
+# Define loss for generator - generator goal is to get the discriminator to classify each generated image as real
+g_loss = tf.reduce_mean(
+    tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(disc_logits_fake), logits=disc_logits_fake))
+
 
 # Define loss functions for the Discriminator
 d_loss_real_data = tf.nn.sigmoid_cross_entropy_with_logits(labels=d_labels_real, logits=disc_logits_real)
 d_loss_generated_data = tf.nn.sigmoid_cross_entropy_with_logits(labels=d_labels_fake, logits=disc_logits_fake)
 d_loss = tf.reduce_mean(d_loss_real_data + d_loss_generated_data)
 
-# Define loss for generator
-# loss of generator is to get discriminator say for every generated image that it is "1" meaning not fake
-g_loss = tf.reduce_mean(
-    tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(disc_logits_fake), logits=disc_logits_fake))
 
 # Define the different variables for the Generator and Discriminator separately
 all_vars = tf.trainable_variables()
 disc_vars = [var for var in all_vars if var.name.startswith('Discriminator')]
 generator_vars = [var for var in all_vars if var.name.startswith('Generator')]
 
+
 # Define optimizer for Generator and Discriminator
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     disc_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(d_loss, var_list=disc_vars)
-    gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
-                                                                                         var_list=generator_vars)
+    gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss, var_list=generator_vars)
+
 
 # Create tf session and initalize all the variable
 sess = tf.InteractiveSession()
@@ -229,4 +233,5 @@ model_training()
 # Test model performance
 model_test()
 
+# End the tf session
 sess.close()
