@@ -10,6 +10,7 @@ tf.reset_default_graph()
 
 def generator(z, training=True):
     with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
+
         # First layer - reshape to  4x4x1024  batch-normalized and relu activated
         dense_layer1 = tf.layers.dense(z, 1024 * 4 * 4)
         gen_layer1 = tf.reshape(dense_layer1, [-1, 4, 4, 1024])
@@ -39,7 +40,8 @@ def generator(z, training=True):
 
 def discriminator(x, training=True):
     with tf.variable_scope('Discriminator', reuse=tf.AUTO_REUSE):
-        # First layer - conv to  32x32x128  with stride of 2 and same padding  leaky-relu activated
+
+        # First layer - conv to 32x32x128, stride of 2, same padding, batch-normalization and leaky-relu activated
         disc_conv1 = tf.layers.conv2d(x, 128, [5, 5], strides=(2, 2), padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv1, training=training)
         disc_activation1 = leaky_relu(batch_norm_disc)
