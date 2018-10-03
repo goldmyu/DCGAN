@@ -52,7 +52,7 @@ def discriminator(x, training=True):
         disc_activation2 = leaky_relu(batch_norm_disc)
 
         # Third layer - conv to  8x8x512 with stride of 2 and same padding, batch-normalized leaky-relu activated
-        disc_conv3 = tf.layers.conv2d(disc_activation2, 512, [5, 5], strides=(2, 2), padding='SAME')
+        disc_conv3 = tf.layers.conv2d(inputs=disc_activation2, filters=512, kernel=[5, 5], strides=(2, 2), padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv3, training=training)
         disc_activation3 = leaky_relu(batch_norm_disc)
 
@@ -155,7 +155,7 @@ def model_test():
     good_imgs = np.size(np.where(tf.sigmoid(disc).eval() > 0.5)[0])
 
     print("Testing the model with 1000 generated images from the trained generator...\n"
-          "Our trained discriminator classified %.3f out of 1000 as real images." % good_imgs)
+          "Our trained discriminator classified %d out of 1000 as real images." % good_imgs)
 
     print("Plotting some of the generated images : ")
     plot_and_save_images(8, "Generated images", gen, "test_img.png", True)
