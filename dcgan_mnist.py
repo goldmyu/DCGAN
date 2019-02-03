@@ -1,4 +1,6 @@
 import os
+import time
+
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -7,10 +9,18 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 tf.reset_default_graph()
 
+# ----------------------Defining the models hyper-parameters--------------------------------------
+
+learning_rate = 0.0002
+momentum_beta1 = 0.5
+batch_size = 128
+epochs = 10
+
+# ------------------------------------ Models Definition ----------------------------------------
+
 
 def generator(z, training=True):
     with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
-
         # First layer - reshape to  4x4x1024  batch-normalized and relu activated
         dense_layer1 = tf.layers.dense(z, 1024 * 4 * 4)
         gen_layer1 = tf.reshape(dense_layer1, [-1, 4, 4, 1024])
@@ -40,34 +50,33 @@ def generator(z, training=True):
 
 def discriminator(x, training=True):
     with tf.variable_scope('Discriminator', reuse=tf.AUTO_REUSE):
-
         # First layer - conv to 32x32x128, stride of 2, same padding, batch-normalization and leaky-relu activated
         disc_conv1 = tf.layers.conv2d(x, 128, [5, 5], strides=(2, 2), padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv1, training=training)
-        disc_activation1 = leaky_relu(batch_norm_disc)
+        disc_activation1 = tf.nn.leaky_relu(batch_norm_disc)
 
         # Second layer - conv to  16x16x256  with stride of 2 and same padding, batch-normalized leaky-relu activated
         disc_conv2 = tf.layers.conv2d(disc_activation1, 256, [5, 5], strides=(2, 2), padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv2, training=training)
-        disc_activation2 = leaky_relu(batch_norm_disc)
+        disc_activation2 = tf.nn.leaky_relu(batch_norm_disc)
 
         # Third layer - conv to  8x8x512 with stride of 2 and same padding, batch-normalized leaky-relu activated
-        disc_conv3 = tf.layers.conv2d(inputs=disc_activation2, filters=512, kernel=[5, 5], strides=(2, 2), padding='SAME')
+        disc_conv3 = tf.layers.conv2d(inputs=disc_activation2, filters=512, kernel=[5, 5], strides=(2, 2),
+                                      padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv3, training=training)
-        disc_activation3 = leaky_relu(batch_norm_disc)
+        disc_activation3 = tf.nn.leaky_relu(batch_norm_disc)
 
         # Forth layer - conv to  4x4x1024 with stride of 2 and same padding, batch-normalized leaky-relu activated
         disc_conv4 = tf.layers.conv2d(disc_activation3, 1024, [5, 5], strides=(2, 2), padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv4, training=training)
-        disc_activation4 = leaky_relu(batch_norm_disc)
+        disc_activation4 = tf.nn.leaky_relu(batch_norm_disc)
 
         # Output layer - conv to 1x1x1
         disc_conv5 = tf.layers.conv2d(disc_activation4, 1, [4, 4])
         return disc_conv5
 
 
-def leaky_relu(x_):
-    return tf.maximum(0.2 * x_, x_)
+# ---------------------------------------------------------------------------------------------
 
 
 def save_train_results(epoch_num, show=False, path='img.png'):
@@ -113,6 +122,7 @@ def model_training():
     num_of_iterations = mnist.train.num_examples // (batch_size)
     processed_images = resize_and_normalize_data(mnist.train.images)
     for epoch in range(epochs):
+        epoch_time = time.time()
         discriminator_losses = []
         generator_losses = []
 
@@ -126,15 +136,15 @@ def model_training():
                 [d_loss, g_loss, disc_optimizer, gen_optimizer], {x: x_batch, z: z_, training: True})
 
             if i % 100 == 0:
-                print(
-                    'Training stats: iteration number %d/%d in epoch number %d\nDiscriminator loss is: %.3f\nGenerator '
-                    'loss is : %.3f' % (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
+                print('Training stats: iteration number %d/%d in epoch number %d\n'
+                      'Discriminator loss: %.3f\nGenerator loss: %.3f' %
+                      (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
 
             discriminator_losses.append(d_loss1)
             generator_losses.append(g_loss1)
 
-        print('Training epoch number %d out of %d - discriminator loss is : %.3f, Generator loss is: %.3f' % (
-            (epoch + 1), epochs, np.mean(discriminator_losses), np.mean(generator_losses)))
+        print('Training epoch %d/%d - Time for epoch: %d discriminator loss: %.3f, Generator loss: %.3f' % (
+            (epoch + 1), epochs, time.time() - epoch_time, np.mean(discriminator_losses), np.mean(generator_losses)))
 
         train_results_dir = "train_results/"
         if not os.path.exists(train_results_dir):
@@ -163,12 +173,6 @@ def model_test():
 
 # ----------------------------------------------------------------------------
 
-# Defining the models hyper-parameters
-learning_rate = 0.0002
-momentum_beta1 = 0.5
-batch_size = 128
-epochs = 10
-
 # The MNIST data-set
 mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 
@@ -180,41 +184,35 @@ training = tf.placeholder(dtype=tf.bool)
 # Define the Generator model
 generated = generator(z, training=training)
 
-
 # Define the Discriminator model
 disc_logits_real = discriminator(x)
 disc_logits_fake = discriminator(generated)
-
 
 # Define labels for the discriminator training
 d_labels_real = tf.ones_like(disc_logits_real)
 d_labels_fake = tf.zeros_like(disc_logits_fake)
 
-
 # Define loss for generator - generator goal is to get the discriminator to classify each generated image as real
 g_loss = tf.reduce_mean(
     tf.nn.sigmoid_cross_entropy_with_logits(labels=tf.ones_like(disc_logits_fake), logits=disc_logits_fake))
-
 
 # Define loss functions for the Discriminator
 d_loss_real_data = tf.nn.sigmoid_cross_entropy_with_logits(labels=d_labels_real, logits=disc_logits_real)
 d_loss_generated_data = tf.nn.sigmoid_cross_entropy_with_logits(labels=d_labels_fake, logits=disc_logits_fake)
 d_loss = tf.reduce_mean(d_loss_real_data + d_loss_generated_data)
 
-
 # Define the different variables for the Generator and Discriminator separately
 all_vars = tf.trainable_variables()
 disc_vars = [var for var in all_vars if var.name.startswith('Discriminator')]
 generator_vars = [var for var in all_vars if var.name.startswith('Generator')]
 
-
 # Define optimizer for Generator and Discriminator
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     disc_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(d_loss, var_list=disc_vars)
-    gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss, var_list=generator_vars)
+    gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
+                                                                                         var_list=generator_vars)
 
-
-# Create tf session and initalize all the variable
+# Create tf session and initialize all the variable
 sess = tf.InteractiveSession()
 tf.global_variables_initializer().run()
 
@@ -228,8 +226,12 @@ device_name = tf.test.gpu_device_name()
 if device_name == '/device:GPU:0':
     print('\nGPU device found at: {}'.format(device_name))
 
+# -------------------------------------------------------------------------------
+
+train_time = time.time()
 # Train the model
 model_training()
+print('Total Training time was: %d' % (time.time() - train_time))
 
 # Test model performance
 model_test()
