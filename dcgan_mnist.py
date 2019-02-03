@@ -2,6 +2,7 @@ import os
 import time
 
 import tensorflow as tf
+import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -15,6 +16,7 @@ learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 128
 epochs = 10
+
 
 # ------------------------------------ Models Definition ----------------------------------------
 
@@ -122,7 +124,7 @@ def model_training():
     num_of_iterations = mnist.train.num_examples // (batch_size)
     processed_images = resize_and_normalize_data(mnist.train.images)
     for epoch in range(epochs):
-        epoch_time = time.time()
+        epoch_start_time = time.time()
         discriminator_losses = []
         generator_losses = []
 
@@ -143,8 +145,12 @@ def model_training():
             discriminator_losses.append(d_loss1)
             generator_losses.append(g_loss1)
 
+        epoch_runtime = time.time() - epoch_start_time
         print('Training epoch %d/%d - Time for epoch: %d discriminator loss: %.3f, Generator loss: %.3f' % (
-            (epoch + 1), epochs, time.time() - epoch_time, np.mean(discriminator_losses), np.mean(generator_losses)))
+            (epoch + 1), epochs, epoch_runtime, np.mean(discriminator_losses), np.mean(generator_losses)))
+
+        df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses, 0, 0, epoch_runtime)],
+                            index=df.column), ignore_index=True)
 
         train_results_dir = "train_results/"
         if not os.path.exists(train_results_dir):
@@ -227,6 +233,7 @@ if device_name == '/device:GPU:0':
     print('\nGPU device found at: {}'.format(device_name))
 
 # -------------------------------------------------------------------------------
+df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
 train_time = time.time()
 # Train the model
@@ -238,3 +245,5 @@ model_test()
 
 # End the tf session
 sess.close()
+
+df.to_csv('df.csv')
