@@ -20,7 +20,6 @@ epochs = 10
 
 # ------------------------------------ Models Definition ----------------------------------------
 
-
 def generator(z, training=True):
     with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
         # First layer - reshape to  4x4x1024  batch-normalized and relu activated
@@ -63,7 +62,7 @@ def discriminator(x, training=True):
         disc_activation2 = tf.nn.leaky_relu(batch_norm_disc)
 
         # Third layer - conv to  8x8x512 with stride of 2 and same padding, batch-normalized leaky-relu activated
-        disc_conv3 = tf.layers.conv2d(inputs=disc_activation2, filters=512, kernel=[5, 5], strides=(2, 2),
+        disc_conv3 = tf.layers.conv2d(inputs=disc_activation2, filters=512, kernel_size=[5, 5], strides=(2, 2),
                                       padding='SAME')
         batch_norm_disc = tf.layers.batch_normalization(disc_conv3, training=training)
         disc_activation3 = tf.nn.leaky_relu(batch_norm_disc)
@@ -149,8 +148,8 @@ def model_training():
         print('Training epoch %d/%d - Time for epoch: %d discriminator loss: %.3f, Generator loss: %.3f' % (
             (epoch + 1), epochs, epoch_runtime, np.mean(discriminator_losses), np.mean(generator_losses)))
 
-        df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses, 0, 0, epoch_runtime)],
-                            index=df.column), ignore_index=True)
+        df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses), 0, 0, epoch_runtime],
+                            index=df.columns), ignore_index=True)
 
         train_results_dir = "train_results/"
         if not os.path.exists(train_results_dir):
