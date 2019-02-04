@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from tensorflow.examples.tutorials.mnist import input_data
+from keras.datasets import fashion_mnist
 
 tf.reset_default_graph()
 
@@ -14,11 +14,12 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 128
 epochs = 10
+batch_size = 100
+num_of_iterations = 600
 
 
-output_path_dir = "generated_files/"
+output_path_dir = "fashion_mnist_gen_files/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -26,6 +27,7 @@ ckpt_path = output_path_dir + "checkpoints/model.ckpt"
 
 
 # ------------------------------------ Models Definition ----------------------------------------
+
 
 def generator(z, _training=True):
     with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
@@ -126,31 +128,33 @@ def model_training():
     # Training of the model
 
     train_time = time.time()
-
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
     print('\nStarting training of the DCGAN model...')
-    num_of_iterations = mnist.train.num_examples // batch_size
-    imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-    processed_images = (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
         generator_losses = []
 
-        np.random.shuffle(processed_images)  # shuffle the dataset to get random samples
+        random_shuffle_data = np.random.permutation(len(x_train))
 
-        for i in range(num_of_iterations):
+        for _iter in range(num_of_iterations):
+            indices = random_shuffle_data[_iter * batch_size: (_iter + 1) * batch_size]
+
+            # Prepare train images - Resize images from 28x28 to 64x64
+            train_data_batch = np.take(x_train, indices=indices, axis=0)
+            train_data_batch = np.reshape(train_data_batch, newshape=(batch_size, 28, 28, 1))
+            train_data_batch = tf.image.resize_images(train_data_batch, [64, 64]).eval()
+
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
-            x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
 
             d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer], {x: x_batch, z: z_, training: True})
+                [d_loss, g_loss, disc_optimizer, gen_optimizer], {x: train_data_batch, z: z_, training: True})
 
-            if i % 100 == 0:
+            if _iter % 100 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
                       'Discriminator loss: %.3f\nGenerator loss: %.3f' %
-                      (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
+                      (_iter, num_of_iterations, epoch + 1, d_loss1, g_loss1))
 
             discriminator_losses.append(d_loss1)
             generator_losses.append(g_loss1)
@@ -186,7 +190,8 @@ def model_test():
 # ----------------------------------------------------------------------------
 
 # The MNIST data-set
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
+(x_train, y_train), (x_test, y_test) = fashion_mnist.load_data()
+x_train = (x_train / 255 - 0.5) / 0.5
 
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
@@ -229,7 +234,7 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
 # if device_name == '/device:GPU:0':
 #     print('\nGPU device found at: {}'.format(device_name))
 
-# ----------------TF Session and CheckPoint---------------------------------------------------------------
+# ----------------TF Session ---------------------------------------------------------------
 
 # Create tf session and initialize all the variable
 sess = tf.InteractiveSession()
