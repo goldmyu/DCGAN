@@ -180,8 +180,7 @@ def model_test():
     print("Testing the model with 1000 generated images from the trained generator...\n"
           "Our trained discriminator classified %d out of 1000 as real images." % good_imgs)
 
-    print("Plotting some of the generated images : ")
-    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png", True)
+    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png", False)
 
 
 # ----------------------------------------------------------------------------
