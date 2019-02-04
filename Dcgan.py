@@ -6,8 +6,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-from tensorflow.examples.tutorials.mnist import input_data
-
 tf.reset_default_graph()
 
 # ----------------------Defining the models hyper-parameters--------------------------------------
@@ -187,7 +185,7 @@ def model_test():
 # ----------------------------------------------------------------------------
 
 # The MNIST data-set
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
+# mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
