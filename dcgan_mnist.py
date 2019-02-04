@@ -18,6 +18,13 @@ batch_size = 128
 epochs = 10
 
 
+output_path_dir = "generated_files/"
+if not os.path.exists(output_path_dir):
+    os.makedirs(output_path_dir)
+
+ckpt_path = output_path_dir + "checkpoints/model.ckpt"
+
+
 # ------------------------------------ Models Definition ----------------------------------------
 
 def generator(z, training=True):
@@ -80,7 +87,8 @@ def discriminator(x, training=True):
 # ---------------------------------------------------------------------------------------------
 
 
-def save_train_results(epoch_num, show=False, path='img.png'):
+def save_train_results(epoch_num, show=False):
+    path = output_path_dir + '/epoch' + str(epoch_num + 1) + '.png'
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
@@ -104,11 +112,6 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
     plt.close()
 
 
-def resize_and_normalize_data(mnist_imgs):
-    imgs = tf.image.resize_images(mnist_imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-    return (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
-
-
 def restore_model_from_ckpt():
     try:
         saver.restore(sess, ckpt_path)
@@ -119,9 +122,11 @@ def restore_model_from_ckpt():
 
 def model_training():
     # Training of the model
+    train_time = time.time()
     print('\nStarting training of the DCGAN model...')
-    num_of_iterations = mnist.train.num_examples // (batch_size)
-    processed_images = resize_and_normalize_data(mnist.train.images)
+    num_of_iterations = mnist.train.num_examples // batch_size
+    imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
+    processed_images = (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
@@ -148,19 +153,15 @@ def model_training():
         print('Training epoch %d/%d - Time for epoch: %d discriminator loss: %.3f, Generator loss: %.3f' % (
             (epoch + 1), epochs, epoch_runtime, np.mean(discriminator_losses), np.mean(generator_losses)))
 
-        df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses), 0, 0, epoch_runtime],
+        df=df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses), 0, 0, epoch_runtime],
                             index=df.columns), ignore_index=True)
 
-        train_results_dir = "train_results/"
-        if not os.path.exists(train_results_dir):
-            os.makedirs(train_results_dir)
-
-        img_path = 'train_results/epoch' + str(epoch + 1) + '.png'
-        save_train_results(epoch, show=True, path=img_path)
-        print("path of images: " + img_path)
+        save_train_results(epoch, show=False)
 
         save_path = saver.save(sess, ckpt_path)
         print("Model saved in path: %s" % save_path)
+
+    print('Total Training time was: %d' % (time.time() - train_time))
 
 
 def model_test():
@@ -173,7 +174,7 @@ def model_test():
           "Our trained discriminator classified %d out of 1000 as real images." % good_imgs)
 
     print("Plotting some of the generated images : ")
-    plot_and_save_images(8, "Generated images", gen, "test_img.png", True)
+    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png", True)
 
 
 # ----------------------------------------------------------------------------
@@ -217,32 +218,33 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
                                                                                          var_list=generator_vars)
 
+# Check if we are running on a GPU or CPU
+# device_name = tf.test.gpu_device_name()
+# if device_name == '/device:GPU:0':
+#     print('\nGPU device found at: {}'.format(device_name))
+
+# ----------------TF Session and CheckPoint---------------------------------------------------------------
+
 # Create tf session and initialize all the variable
 sess = tf.InteractiveSession()
 tf.global_variables_initializer().run()
 
 # Create a tf saver to enable training check-points and try to restore from previous ckpt if exist
 saver = tf.train.Saver()
-ckpt_path = "/tmp/model.ckpt"
 restore_model_from_ckpt()
 
-# Check if we are running on a GPU or CPU
-device_name = tf.test.gpu_device_name()
-if device_name == '/device:GPU:0':
-    print('\nGPU device found at: {}'.format(device_name))
-
 # -------------------------------------------------------------------------------
+
 df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
-train_time = time.time()
 # Train the model
 model_training()
-print('Total Training time was: %d' % (time.time() - train_time))
 
 # Test model performance
 model_test()
 
+df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
+
 # End the tf session
 sess.close()
 
-df.to_csv('df.csv')
