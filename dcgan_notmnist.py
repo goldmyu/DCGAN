@@ -15,18 +15,25 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 128
+batch_size = 100
 epochs = 10
+num_of_iterations = 180
 
 
-output_path_dir = "notmnist_gen_files/"
+# =================================== Configurations ===================================================================
+
+model_save_flag = False
+model_restore_flag = False
+show_images = False
+
+output_path_dir = "generated_files/notmnist/"
+ckpt_path = output_path_dir + "checkpoints/model.ckpt"
+
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
-ckpt_path = output_path_dir + "checkpoints/model.ckpt"
-
-
 # ------------------------------------ Models Definition ----------------------------------------
+
 
 def generator(z, _training=True):
     with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
@@ -113,12 +120,22 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
     plt.close()
 
 
+def save_model_to_checkpoint():
+    if model_save_flag:
+        try:
+            save_path = saver.save(sess, ckpt_path)
+            print("Model saved in path: %s" % save_path)
+        except Exception as e:
+            print("\nERROR : Could not save the model due to -  " + str(e))
+
+
 def restore_model_from_ckpt():
-    try:
-        saver.restore(sess, ckpt_path)
-        print("\nModel restored from latest checkpoint")
-    except:
-        print("could not restore model, starting from scratch...")
+    if model_restore_flag:
+        try:
+            saver.restore(sess, ckpt_path)
+            print("\nModel restored from latest checkpoint")
+        except:
+            print("could not restore model, starting from scratch...")
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
 
@@ -135,7 +152,7 @@ def load_images():
                 img = Image.open(path + x+'/' + image)
                 loaded_images.append(np.asarray(img))
             except OSError as error:
-                print("error uploading image")
+                print("problem loading image, skipping img...")
     return loaded_images
 
 
@@ -151,7 +168,7 @@ def model_training():
     imgs = np.array(load_images())
     imgs = imgs.reshape(len(imgs), 28, 28,1)
     imgs = tf.image.resize_images(imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-    num_of_iterations = len(imgs) // batch_size
+    # num_of_iterations = len(imgs) // batch_size
 
     # num_of_iterations = mnist.train.num_examples // batch_size
     # imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
@@ -193,8 +210,7 @@ def model_training():
 
         save_train_results(epoch, show=False)
 
-        save_path = saver.save(sess, ckpt_path)
-        print("Model saved in path: %s" % save_path)
+        save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
