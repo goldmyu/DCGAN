@@ -5,9 +5,8 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
-from os import listdir
 
+from keras.datasets import cifar10
 
 tf.reset_default_graph()
 
@@ -15,11 +14,12 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 100
 epochs = 10
-num_of_iterations = 180
+batch_size = 100
+num_of_iterations = 600
 
-output_path_dir = "notmnist_gen_files/"
+
+output_path_dir = "cifar10_gen_files/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -28,31 +28,37 @@ ckpt_path = output_path_dir + "checkpoints/model.ckpt"
 
 # ------------------------------------ Models Definition ----------------------------------------
 
+
 def generator(z, _training=True):
     with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
         # First layer - reshape to  4x4x1024  batch-normalized and relu activated
-        dense_layer1 = tf.layers.dense(z, 1024 * 4 * 4)
-        gen_layer1 = tf.reshape(dense_layer1, [-1, 4, 4, 1024])
-        batch_norm1 = tf.layers.batch_normalization(gen_layer1, training=_training)
-        activation_layer1 = tf.nn.relu(batch_norm1)
+        dense_layer1 = tf.layers.dense(inputs=z, units=1024 * 4 * 4)
+        gen_layer1 = tf.reshape(tensor=dense_layer1, shape=[-1, 4, 4, 1024])
+        batch_norm1 = tf.layers.batch_normalization(inputs=gen_layer1, training=_training)
+        activation_layer1 = tf.nn.relu(features=batch_norm1)
 
         # second layer - a de-conv to 8x8x512 with stride of 2 and same padding, batch-normalized and relu activated
-        gen_conv2 = tf.layers.conv2d_transpose(activation_layer1, 512, [5, 5], strides=(2, 2), padding='SAME')
-        batch_norm2 = tf.layers.batch_normalization(gen_conv2, training=_training)
+        gen_conv2 = tf.layers.conv2d_transpose(inputs=activation_layer1, filters=512,
+                                               kernel_size=[5, 5], strides=(2, 2), padding='SAME')
+
+        batch_norm2 = tf.layers.batch_normalization(inputs=gen_conv2, training=_training)
         activation_layer2 = tf.nn.relu(batch_norm2)
 
         # third layer - a de-conv to 16x16x256 with stride of 2 and same padding, batch-normalized and relu activated
-        gen_conv3 = tf.layers.conv2d_transpose(activation_layer2, 256, [5, 5], strides=(2, 2), padding='SAME')
-        batch_norm3 = tf.layers.batch_normalization(gen_conv3, training=_training)
+        gen_conv3 = tf.layers.conv2d_transpose(inputs=activation_layer2, filters=256,
+                                               kernel_size=[5, 5], strides=(2, 2), padding='SAME')
+
+        batch_norm3 = tf.layers.batch_normalization(inputs=gen_conv3, training=_training)
         activation_layer3 = tf.nn.relu(batch_norm3)
 
         # forth layer - a de-conv to 32x32x128 with stride of 2 and same padding, batch-normalized and relu activated
-        gen_conv4 = tf.layers.conv2d_transpose(activation_layer3, 128, [5, 5], strides=(2, 2), padding='SAME')
-        batch_norm4 = tf.layers.batch_normalization(gen_conv4, training=_training)
+        gen_conv4 = tf.layers.conv2d_transpose(inputs=activation_layer3, filters=128, kernel_size=[5, 5], strides=(2, 2), padding='SAME')
+        batch_norm4 = tf.layers.batch_normalization(inputs=gen_conv4, training=_training)
         activation_layer4 = tf.nn.relu(batch_norm4)
 
         # fifth layer- output - a de-conv to 64x64x3 with stride of 2 and same padding and tanh activated
-        gen_conv5 = tf.layers.conv2d_transpose(activation_layer4, 1, [5, 5], strides=(2, 2), padding='SAME')
+        gen_conv5 = tf.layers.conv2d_transpose(inputs=activation_layer4, filters=3, kernel_size=[5, 5],
+                                               strides=(2, 2), padding='SAME')
         activation_layer5 = tf.tanh(gen_conv5)
         return activation_layer5
 
@@ -106,7 +112,7 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
         subplots[i, j].get_xaxis().set_visible(False)
         subplots[i, j].get_yaxis().set_visible(False)
         subplots[i, j].cla()
-        subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64)), cmap='gray')
+        subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64)))
     if show:
         plt.show()
     plt.savefig(path)
@@ -123,22 +129,6 @@ def restore_model_from_ckpt():
 # -------------------------------------- Model Train and Test -----------------------------------------------
 
 
-def load_images():
-    path = '../data-sets/notMNIST/'
-    # return array of images
-    directory_list = listdir(path)
-    loaded_images = []
-    for x in directory_list:
-        images_list = listdir(path + x +'/')
-        for image in images_list:
-            try:
-                img = Image.open(path + x+'/' + image)
-                loaded_images.append(np.asarray(img))
-            except OSError as error:
-                print("problem loading image, skipping img...")
-    return loaded_images
-
-
 def model_training():
     # Training of the model
 
@@ -146,16 +136,6 @@ def model_training():
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
     print('\nStarting training of the DCGAN model...')
-
-    # your images in an array
-    imgs = np.array(load_images())
-    imgs = imgs.reshape(len(imgs), 28, 28,1)
-    imgs = tf.image.resize_images(imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-    # num_of_iterations = len(imgs) // batch_size
-
-    # num_of_iterations = mnist.train.num_examples // batch_size
-    # imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-    processed_images = (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
@@ -163,20 +143,26 @@ def model_training():
         discriminator_loss_fake = []
         generator_losses = []
 
-        np.random.shuffle(processed_images)  # shuffle the dataset to get random samples
+        random_shuffle_data = np.random.permutation(len(x_train))
 
-        for i in range(num_of_iterations):
+        for _iter in range(num_of_iterations):
+            indices = random_shuffle_data[_iter * batch_size: (_iter + 1) * batch_size]
+
+            # Prepare train images - Resize images from 32x32 to 64x64
+            train_data_batch = np.take(x_train, indices=indices, axis=0)
+            # train_data_batch = np.reshape(train_data_batch, newshape=(batch_size, 28, 28, 3))
+            train_data_batch = tf.image.resize_images(train_data_batch, [64, 64]).eval()
+
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
-            x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
 
-            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1, d_loss_generated_data1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data, d_loss_generated_data],
-                {x: x_batch, z: z_, training: True})
+            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1, d_loss_real_data1,  d_loss_generated_data1 = sess.run(
+                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
+                {x: train_data_batch, z: z_, training: True})
 
-            if i % 100 == 0:
+            if _iter % 100 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
                       'Discriminator loss: %.3f\nGenerator loss: %.3f' %
-                      (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
+                      (_iter, num_of_iterations, epoch + 1, d_loss1, g_loss1))
 
             discriminator_losses.append(d_loss1)
             discriminator_loss_real.append(d_loss_real_data1)
@@ -209,15 +195,18 @@ def model_test():
     print("Testing the model with 1000 generated images from the trained generator...\n"
           "Our trained discriminator classified %d out of 1000 as real images." % good_imgs)
 
-    print("Plotting some of the generated images : ")
-    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png", True)
+    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png", False)
 
 
 # ----------------------------------------------------------------------------
 
+# The MNIST data-set
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+x_train = (x_train / 255 - 0.5) / 0.5
+
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
-x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name='X')
+x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 3], name='X')
 training = tf.placeholder(dtype=tf.bool)
 
 # Define the Generator model
@@ -251,8 +240,7 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
                                                                                          var_list=generator_vars)
 
-
-# ----------------TF Session and CheckPoint---------------------------------------------------------------
+# ----------------TF Session ---------------------------------------------------------------
 
 # Create tf session and initialize all the variable
 sess = tf.InteractiveSession()
