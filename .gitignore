@@ -1,3 +1,5 @@
 venv/
 .idea/
 MNIST_data/
+fashion_mnist_gen_files/
+generated_files/
