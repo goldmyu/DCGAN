@@ -150,7 +150,7 @@ def model_training():
 
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
-            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1, d_loss_real_data1,  d_loss_generated_data1= sess.run(
+            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1, d_loss_real_data1,  d_loss_generated_data1 = sess.run(
                 [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
                 {x: train_data_batch, z: z_, training: True})
 
