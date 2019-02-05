@@ -19,14 +19,21 @@ batch_size = 100
 epochs = 10
 num_of_iterations = 180
 
+
+# =================================== Configurations ===================================================================
+
+model_save_flag = False
+model_restore_flag = False
+show_images = False
+
 output_path_dir = "generated_files/notmnist/"
+ckpt_path = output_path_dir + "checkpoints/model.ckpt"
+
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
-ckpt_path = output_path_dir + "checkpoints/model.ckpt"
-
-
 # ------------------------------------ Models Definition ----------------------------------------
+
 
 def generator(z, _training=True):
     with tf.variable_scope('Generator', reuse=tf.AUTO_REUSE):
@@ -113,12 +120,22 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
     plt.close()
 
 
+def save_model_to_checkpoint():
+    if model_save_flag:
+        try:
+            save_path = saver.save(sess, ckpt_path)
+            print("Model saved in path: %s" % save_path)
+        except Exception as e:
+            print("\nERROR : Could not save the model due to -  " + str(e))
+
+
 def restore_model_from_ckpt():
-    try:
-        saver.restore(sess, ckpt_path)
-        print("\nModel restored from latest checkpoint")
-    except:
-        print("could not restore model, starting from scratch...")
+    if model_restore_flag:
+        try:
+            saver.restore(sess, ckpt_path)
+            print("\nModel restored from latest checkpoint")
+        except:
+            print("could not restore model, starting from scratch...")
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
 
@@ -193,8 +210,7 @@ def model_training():
 
         save_train_results(epoch, show=False)
 
-        save_path = saver.save(sess, ckpt_path)
-        print("Model saved in path: %s" % save_path)
+        save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)

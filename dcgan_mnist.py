@@ -18,6 +18,12 @@ batch_size = 128
 epochs = 10
 
 
+# =================================== Configurations ===================================================================
+
+model_save_flag = False
+model_restore_flag = False
+show_images = False
+
 output_path_dir = "generated_files/mnist/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
@@ -93,10 +99,10 @@ def save_train_results(epoch_num, show=False):
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
     img_label = 'Generated images after {} training epoch'.format(epoch_num + 1)
-    plot_and_save_images(dims, img_label, generated_images, path, show)
+    plot_and_save_images(dims, img_label, generated_images, path)
 
 
-def plot_and_save_images(dims, img_label, generated_images, path, show):
+def plot_and_save_images(dims, img_label, generated_images, path, show=show_images):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
     for iterator in range(dims * dims):
@@ -112,12 +118,22 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
     plt.close()
 
 
+def save_model_to_checkpoint():
+    if model_save_flag:
+        try:
+            save_path = saver.save(sess, ckpt_path)
+            print("Model saved in path: %s" % save_path)
+        except Exception as e:
+            print("\nERROR : Could not save the model due to -  " + str(e))
+
+
 def restore_model_from_ckpt():
-    try:
-        saver.restore(sess, ckpt_path)
-        print("\nModel restored from latest checkpoint")
-    except:
-        print("could not restore model, starting from scratch...")
+    if model_restore_flag:
+        try:
+            saver.restore(sess, ckpt_path)
+            print("\nModel restored from latest checkpoint")
+        except:
+            print("could not restore model, starting from scratch...")
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
 
@@ -186,7 +202,7 @@ def model_test():
     print("Testing the model with 1000 generated images from the trained generator...\n"
           "Our trained discriminator classified %d out of 1000 as real images." % good_imgs)
 
-    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png", False)
+    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png")
 
 
 # ----------------------------------------------------------------------------
