@@ -92,7 +92,7 @@ def discriminator(x, _training=True):
 # ---------------------------------------------------------------------------------------------
 
 
-def save_train_results(epoch_num, show=False):
+def save_train_results(epoch_num):
     path = output_path_dir + '/epoch' + str(epoch_num + 1) + '.png'
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
@@ -104,7 +104,6 @@ def save_train_results(epoch_num, show=False):
 def plot_and_save_images(dims, img_label, generated_images, path, show=show_images):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
-    # generated_images = 0.5 * generated_images + 0.5
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
