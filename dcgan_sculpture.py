@@ -152,7 +152,7 @@ def model_training():
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
     print('\nStarting training of the DCGAN model...')
-    path = './art/sculpture/'
+    path = '../data-sets/sculpture/'
 
     # your images in an array
     imgs = load_images(path)
