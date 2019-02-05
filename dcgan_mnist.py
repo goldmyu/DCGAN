@@ -18,7 +18,7 @@ batch_size = 128
 epochs = 10
 
 
-output_path_dir = "generated_files/"
+output_path_dir = "mnist_gen_files/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -147,7 +147,8 @@ def model_training():
             x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
 
             d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1,  d_loss_generated_data1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data], {x: x_batch, z: z_, training: True})
+                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
+                {x: x_batch, z: z_, training: True})
 
             if i % 100 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
