@@ -9,8 +9,6 @@ from PIL import Image
 from os import listdir
 
 
-from tensorflow.examples.tutorials.mnist import input_data
-
 tf.reset_default_graph()
 
 # ----------------------Defining the models hyper-parameters--------------------------------------
@@ -21,7 +19,7 @@ batch_size = 128
 epochs = 10
 
 
-output_path_dir = "generated_files/"
+output_path_dir = "notmnist_gen_files/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -123,36 +121,34 @@ def restore_model_from_ckpt():
         print("could not restore model, starting from scratch...")
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
-def loadImages(path):
-    # return array of images
 
-    directoryList = listdir(path)
-    loadedImages = []
-    for x in directoryList:
-        imagesList = listdir(path + x +'/')
-        for image in imagesList:
+
+def load_images():
+    path = '../data-sets/notMNIST/'
+    # return array of images
+    directory_list = listdir(path)
+    loaded_images = []
+    for x in directory_list:
+        images_list = listdir(path + x +'/')
+        for image in images_list:
             try:
                 img = Image.open(path + x+'/' + image)
-                loadedImages.append(np.asarray(img))
+                loaded_images.append(np.asarray(img))
             except OSError as error:
                 print("error uploading image")
-
-    return loadedImages
-
+    return loaded_images
 
 
 def model_training():
     # Training of the model
 
     train_time = time.time()
-
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
     print('\nStarting training of the DCGAN model...')
-    path = '../data-sets/notMNIST/'
 
     # your images in an array
-    imgs = np.array(loadImages(path))
+    imgs = np.array(load_images())
     imgs = imgs.reshape(len(imgs), 28, 28,1)
     imgs = tf.image.resize_images(imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
     num_of_iterations = len(imgs) // batch_size
@@ -163,6 +159,8 @@ def model_training():
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
+        discriminator_loss_real = []
+        discriminator_loss_fake = []
         generator_losses = []
 
         np.random.shuffle(processed_images)  # shuffle the dataset to get random samples
@@ -171,8 +169,9 @@ def model_training():
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
             x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
 
-            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer], {x: x_batch, z: z_, training: True})
+            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1, d_loss_generated_data1 = sess.run(
+                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data, d_loss_generated_data],
+                {x: x_batch, z: z_, training: True})
 
             if i % 100 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
@@ -180,14 +179,17 @@ def model_training():
                       (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
 
             discriminator_losses.append(d_loss1)
+            discriminator_loss_real.append(d_loss_real_data1)
+            discriminator_loss_fake.append(d_loss_generated_data1)
             generator_losses.append(g_loss1)
 
         epoch_runtime = time.time() - epoch_start_time
         print('Training epoch %d/%d - Time for epoch: %d discriminator loss: %.3f, Generator loss: %.3f' % (
             (epoch + 1), epochs, epoch_runtime, np.mean(discriminator_losses), np.mean(generator_losses)))
 
-        df = df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses), 0, 0,
-                                  epoch_runtime], index=df.columns), ignore_index=True)
+        df = df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses),
+                                  np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
+                                 index=df.columns), ignore_index=True)
 
         save_train_results(epoch, show=False)
 
@@ -212,9 +214,6 @@ def model_test():
 
 
 # ----------------------------------------------------------------------------
-
-# The MNIST data-set
-# mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
@@ -252,10 +251,6 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
                                                                                          var_list=generator_vars)
 
-# Check if we are running on a GPU or CPU
-# device_name = tf.test.gpu_device_name()
-# if device_name == '/device:GPU:0':
-#     print('\nGPU device found at: {}'.format(device_name))
 
 # ----------------TF Session and CheckPoint---------------------------------------------------------------
 
