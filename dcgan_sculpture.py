@@ -5,10 +5,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 from os import listdir
-
-from tensorflow.examples.tutorials.mnist import input_data
 
 tf.reset_default_graph()
 
@@ -19,8 +16,14 @@ momentum_beta1 = 0.5
 batch_size = 128
 epochs = 10
 
+# =================================== Configurations ===================================================================
 
-output_path_dir = "mnist_gen_files/"
+model_save_flag = False
+model_restore_flag = False
+show_images = False
+
+
+output_path_dir = "generated_files/sculpture/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -115,33 +118,41 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
     plt.close()
 
 
+
+def save_model_to_checkpoint():
+    if model_save_flag:
+        try:
+            save_path = saver.save(sess, ckpt_path)
+            print("Model saved in path: %s" % save_path)
+        except Exception as e:
+            print("\nERROR : Could not save the model due to -  " + str(e))
+
+
 def restore_model_from_ckpt():
-    try:
-        saver.restore(sess, ckpt_path)
-        print("\nModel restored from latest checkpoint")
-    except:
-        print("could not restore model, starting from scratch...")
+    if model_restore_flag:
+        try:
+            saver.restore(sess, ckpt_path)
+            print("\nModel restored from latest checkpoint")
+        except:
+            print("could not restore model, starting from scratch...")
+
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
+
 def load_images(path):
     # return array of images
-
     images_list = listdir(path)
-    loadedImages = []
+    loaded_images = []
     for image in images_list:
         try:
             image1 = tf.keras.preprocessing.image.load_img(path + image)
-            # image1= tf.image.resize_image_with_crop_or_pad(image1, 64, 64)
             x = tf.keras.preprocessing.image.img_to_array(image1)
-            #img = Image.open(path + image)
-            #loadedImages.append(np.asarray(img))
-            x= tf.image.resize_images(x, [64, 64]).eval()
-            # loadedImages.append(np.asarray(x))
-            loadedImages.append(x)
+            x = tf.image.resize_images(x, [64, 64]).eval()
+            loaded_images.append(x)
         except OSError :
             print("error uploading image")
 
-    return loadedImages
+    return loaded_images
 
 
 def model_training():
@@ -201,8 +212,7 @@ def model_training():
 
         save_train_results(epoch, show=False)
 
-        save_path = saver.save(sess, ckpt_path)
-        print("Model saved in path: %s" % save_path)
+        save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
@@ -221,9 +231,6 @@ def model_test():
 
 
 # ----------------------------------------------------------------------------
-
-# The MNIST data-set
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
