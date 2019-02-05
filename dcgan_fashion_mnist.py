@@ -134,6 +134,8 @@ def model_training():
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
+        discriminator_loss_real = []
+        discriminator_loss_fake = []
         generator_losses = []
 
         random_shuffle_data = np.random.permutation(len(x_train))
@@ -148,8 +150,9 @@ def model_training():
 
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
-            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer], {x: train_data_batch, z: z_, training: True})
+            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1, d_loss_real_data1,  d_loss_generated_data1= sess.run(
+                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
+                {x: train_data_batch, z: z_, training: True})
 
             if _iter % 100 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
@@ -157,14 +160,17 @@ def model_training():
                       (_iter, num_of_iterations, epoch + 1, d_loss1, g_loss1))
 
             discriminator_losses.append(d_loss1)
+            discriminator_loss_real.append(d_loss_real_data1)
+            discriminator_loss_fake.append(d_loss_generated_data1)
             generator_losses.append(g_loss1)
 
         epoch_runtime = time.time() - epoch_start_time
         print('Training epoch %d/%d - Time for epoch: %d discriminator loss: %.3f, Generator loss: %.3f' % (
             (epoch + 1), epochs, epoch_runtime, np.mean(discriminator_losses), np.mean(generator_losses)))
 
-        df = df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses), 0, 0,
-                                  epoch_runtime], index=df.columns), ignore_index=True)
+        df = df.append(pd.Series([epoch + 1, np.mean(generator_losses), np.mean(discriminator_losses),
+                                  np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
+                                 index=df.columns), ignore_index=True)
 
         save_train_results(epoch, show=False)
 
@@ -228,11 +234,6 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     disc_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(d_loss, var_list=disc_vars)
     gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
                                                                                          var_list=generator_vars)
-
-# Check if we are running on a GPU or CPU
-# device_name = tf.test.gpu_device_name()
-# if device_name == '/device:GPU:0':
-#     print('\nGPU device found at: {}'.format(device_name))
 
 # ----------------TF Session ---------------------------------------------------------------
 
