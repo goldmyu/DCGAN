@@ -18,7 +18,7 @@ batch_size = 128
 epochs = 10
 
 
-output_path_dir = "mnist_gen_files/"
+output_path_dir = "generated_files/mnist/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 

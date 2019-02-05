@@ -19,7 +19,7 @@ batch_size = 100
 num_of_iterations = 600
 
 
-output_path_dir = "fashion_mnist_gen_files/"
+output_path_dir = "generated_files/fashion_mnist/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 

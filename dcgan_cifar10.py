@@ -10,23 +10,28 @@ from keras.datasets import cifar10
 
 tf.reset_default_graph()
 
-# ----------------------Defining the models hyper-parameters--------------------------------------
+# =============================== Defining the models hyper-parameters =================================================
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-epochs = 10
+epochs = 20
 batch_size = 100
-num_of_iterations = 600
+num_of_iterations = 500
 
+# =================================== Configurations ===================================================================
 
-output_path_dir = "cifar10_gen_files/"
+model_save_flag = False
+model_restore_flag = False
+show_images = False
+
+output_path_dir = "generated_files/cifar10/"
+ckpt_path = output_path_dir + "checkpoints/model.ckpt"
+
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
-ckpt_path = output_path_dir + "checkpoints/model.ckpt"
 
-
-# ------------------------------------ Models Definition ----------------------------------------
+# =====================================  Models Definition =============================================================
 
 
 def generator(z, _training=True):
@@ -52,7 +57,9 @@ def generator(z, _training=True):
         activation_layer3 = tf.nn.relu(batch_norm3)
 
         # forth layer - a de-conv to 32x32x128 with stride of 2 and same padding, batch-normalized and relu activated
-        gen_conv4 = tf.layers.conv2d_transpose(inputs=activation_layer3, filters=128, kernel_size=[5, 5], strides=(2, 2), padding='SAME')
+        gen_conv4 = tf.layers.conv2d_transpose(inputs=activation_layer3, filters=128, kernel_size=[5, 5],
+                                               strides=(2, 2), padding='SAME')
+
         batch_norm4 = tf.layers.batch_normalization(inputs=gen_conv4, training=_training)
         activation_layer4 = tf.nn.relu(batch_norm4)
 
@@ -94,17 +101,17 @@ def discriminator(x, _training=True):
 # ---------------------------------------------------------------------------------------------
 
 
-def save_train_results(epoch_num, show=False):
+def save_train_results(epoch_num):
     path = output_path_dir + '/epoch' + str(epoch_num + 1) + '.png'
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
     img_label = 'Generated images after {} training epoch'.format(epoch_num + 1)
-    plot_and_save_images(dims, img_label, generated_images, path, show)
+    plot_and_save_images(dims, img_label, generated_images, path)
 
 
-def plot_and_save_images(dims, img_label, generated_images, path, show):
-    figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
+def plot_and_save_images(dims, img_label, generated_images, path, show=show_images, save=True):
+    figure, subplots = plt.subplots(nrows=dims, ncols=dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
     for iterator in range(dims * dims):
         i = iterator // dims
@@ -112,19 +119,32 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
         subplots[i, j].get_xaxis().set_visible(False)
         subplots[i, j].get_yaxis().set_visible(False)
         subplots[i, j].cla()
-        subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64)))
+        subplots[i, j].imshow(np.reshape(a=((generated_images[iterator] * 0.5) + 0.5), newshape=(64, 64, 3)))
+        # subplots[i, j].imshow(((generated_images[iterator]*0.5)+0.5))
     if show:
         plt.show()
-    plt.savefig(path)
+    if save:
+        plt.savefig(path)
     plt.close()
 
 
+def save_model_to_checkpoint():
+    if model_save_flag:
+        try:
+            save_path = saver.save(sess, ckpt_path)
+            print("Model saved in path: %s" % save_path)
+        except Exception as e:
+            print("\nERROR : Could not save the model due to -  " + str(e))
+
+
 def restore_model_from_ckpt():
-    try:
-        saver.restore(sess, ckpt_path)
-        print("\nModel restored from latest checkpoint")
-    except:
-        print("could not restore model, starting from scratch...")
+    if model_restore_flag:
+        try:
+            saver.restore(sess, ckpt_path)
+            print("\nModel restored from latest checkpoint")
+        except:
+            print("could not restore model, starting from scratch...")
+
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
 
@@ -150,13 +170,14 @@ def model_training():
 
             # Prepare train images - Resize images from 32x32 to 64x64
             train_data_batch = np.take(x_train, indices=indices, axis=0)
-            # train_data_batch = np.reshape(train_data_batch, newshape=(batch_size, 28, 28, 3))
+            # plot_and_save_images(4,"test",train_data_batch,"",True,False)
             train_data_batch = tf.image.resize_images(train_data_batch, [64, 64]).eval()
+            # plot_and_save_images(4, "test", train_data_batch, "", True,False)
 
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
-            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1, d_loss_real_data1,  d_loss_generated_data1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
+            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1, d_loss_real_data1, d_loss_generated_data1 = sess.run(
+                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data, d_loss_generated_data],
                 {x: train_data_batch, z: z_, training: True})
 
             if _iter % 100 == 0:
@@ -177,10 +198,10 @@ def model_training():
                                   np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
                                  index=df.columns), ignore_index=True)
 
-        save_train_results(epoch, show=False)
+        save_train_results(epoch)
 
-        save_path = saver.save(sess, ckpt_path)
-        print("Model saved in path: %s" % save_path)
+        save_model_to_checkpoint()
+        # print("Model saved in path: %s" % save_path)
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
@@ -240,7 +261,7 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     gen_optimizer = tf.train.AdamOptimizer(learning_rate, beta1=momentum_beta1).minimize(g_loss,
                                                                                          var_list=generator_vars)
 
-# ----------------TF Session ---------------------------------------------------------------
+# ----------------TF Session and Saver---------------------------------------------------------------
 
 # Create tf session and initialize all the variable
 sess = tf.InteractiveSession()
@@ -260,4 +281,3 @@ model_test()
 
 # End the tf session
 sess.close()
-

@@ -19,7 +19,7 @@ batch_size = 100
 epochs = 10
 num_of_iterations = 180
 
-output_path_dir = "notmnist_gen_files/"
+output_path_dir = "generated_files/notmnist/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
