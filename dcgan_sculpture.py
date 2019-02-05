@@ -98,10 +98,10 @@ def save_train_results(epoch_num, show=False):
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
     img_label = 'Generated images after {} training epoch'.format(epoch_num + 1)
-    plot_and_save_images(dims, img_label, generated_images, path, show)
+    plot_and_save_images(dims, img_label, generated_images, path)
 
 
-def plot_and_save_images(dims, img_label, generated_images, path, show):
+def plot_and_save_images(dims, img_label, generated_images, path, show=show_images):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
     # generated_images = 0.5 * generated_images + 0.5
@@ -227,7 +227,7 @@ def model_test():
     print("Testing the model with 1000 generated images from the trained generator...\n"
           "Our trained discriminator classified %d out of 1000 as real images." % good_imgs)
 
-    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png", False)
+    plot_and_save_images(8, "Generated images", gen, output_path_dir + "model_test_img.png")
 
 
 # ----------------------------------------------------------------------------
