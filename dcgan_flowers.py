@@ -13,9 +13,8 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 50
-epochs = 10
-num_of_iterations = 100
+batch_size = 209
+epochs = 2000
 
 # =================================== Configurations ===================================================================
 
@@ -23,7 +22,7 @@ model_save_flag = False
 model_restore_flag = False
 show_images = False
 
-output_path_dir = "generated_files/flowers"
+output_path_dir = "generated_files/flowers/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -92,19 +91,20 @@ def discriminator(x, _training=True):
 # ---------------------------------------------------------------------------------------------
 
 
-def save_train_results(epoch_num, show=False):
+def save_train_results(epoch_num):
     path = output_path_dir + '/epoch' + str(epoch_num + 1) + '.png'
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
     generated_images = sess.run(generated, feed_dict={z: z_, training: False})
     img_label = 'Generated images after {} training epoch'.format(epoch_num + 1)
-    plot_and_save_images(dims, img_label, generated_images, path, show)
+    plot_and_save_images(dims, img_label, generated_images, path)
 
 
-def plot_and_save_images(dims, img_label, generated_images, path, show):
+def plot_and_save_images(dims, img_label, generated_images, path, show=show_images):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
     generated_images = 0.5 * generated_images + 0.5
+
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
@@ -127,8 +127,8 @@ def save_model_to_checkpoint(flag=model_save_flag):
             print("\nERROR : Could not save the model due to -  " + str(e))
 
 
-def restore_model_from_ckpt():
-    if model_restore_flag:
+def restore_model_from_ckpt(restore=model_restore_flag):
+    if restore:
         try:
             saver.restore(sess, ckpt_path)
             print("\nModel restored from latest checkpoint")
@@ -180,23 +180,21 @@ def model_training():
 
         np.random.shuffle(processed_images)  # shuffle the dataset to get random samples
 
-        for i in range(num_of_iterations):
-            z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
-            x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
+        z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
-            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1, d_loss_generated_data1 = sess.run(
+        d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1, d_loss_generated_data1 = sess.run(
                 [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data, d_loss_generated_data],
-                {x: x_batch, z: z_, training: True})
+                {x: processed_images, z: z_, training: True})
 
-            if i % 100 == 0:
-                print('Training stats: iteration number %d/%d in epoch number %d\n'
+        if epoch % 100 == 0:
+                print('Training stats: epoch %d/%d\n'
                       'Discriminator loss: %.3f\nGenerator loss: %.3f' %
-                      (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
+                      (epoch + 1, epochs,d_loss1, g_loss1))
 
-            discriminator_losses.append(d_loss1)
-            discriminator_loss_real.append(d_loss_real_data1)
-            discriminator_loss_fake.append(d_loss_generated_data1)
-            generator_losses.append(g_loss1)
+        discriminator_losses.append(d_loss1)
+        discriminator_loss_real.append(d_loss_real_data1)
+        discriminator_loss_fake.append(d_loss_generated_data1)
+        generator_losses.append(g_loss1)
 
         epoch_runtime = time.time() - epoch_start_time
         print('Training epoch %d/%d - Time for epoch: %d discriminator loss: %.3f, Generator loss: %.3f' % (
@@ -206,10 +204,8 @@ def model_training():
                                   np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
                                  index=df.columns), ignore_index=True)
 
-        save_train_results(epoch, show=False)
-
-        save_path = saver.save(sess, ckpt_path)
-        print("Model saved in path: %s" % save_path)
+        save_train_results(epoch)
+        save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
