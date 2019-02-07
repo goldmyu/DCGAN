@@ -7,8 +7,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from os import listdir
 
-from tensorflow.examples.tutorials.mnist import input_data
-
 tf.reset_default_graph()
 
 # ----------------------Defining the models hyper-parameters--------------------------------------
@@ -25,7 +23,7 @@ model_save_flag = False
 model_restore_flag = False
 show_images = False
 
-output_path_dir = "generated_files/mnist/"
+output_path_dir = "generated_files/pokemon/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -106,6 +104,7 @@ def save_train_results(epoch_num, show=False):
 def plot_and_save_images(dims, img_label, generated_images, path, show=show_images):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
+    generated_images = 0.5 * generated_images + 0.5
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
@@ -137,18 +136,16 @@ def restore_model_from_ckpt():
             print("could not restore model, starting from scratch...")
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
+
+
 def load_images(path):
     # return array of images
-
     images_list = listdir(path)
     loadedImages = []
     for image in images_list:
         try:
             image1 = tf.keras.preprocessing.image.load_img(path + image)
-            # image1= tf.image.resize_image_with_crop_or_pad(image1, 64, 64)
             x = tf.keras.preprocessing.image.img_to_array(image1)
-            #img = Image.open(path + image)
-            #loadedImages.append(np.asarray(img))
             loadedImages.append(np.asarray(x))
         except OSError :
             print("error uploading image")
@@ -234,9 +231,6 @@ def model_test():
 
 
 # ----------------------------------------------------------------------------
-
-# The MNIST data-set
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')

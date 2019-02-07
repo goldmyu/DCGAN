@@ -5,10 +5,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from PIL import Image
 from os import listdir
-
-from tensorflow.examples.tutorials.mnist import input_data
 
 tf.reset_default_graph()
 
@@ -18,9 +15,15 @@ learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 50
 epochs = 10
+num_of_iterations = 100
 
+# =================================== Configurations ===================================================================
 
-output_path_dir = "mnist_gen_files/"
+model_save_flag = False
+model_restore_flag = False
+show_images = False
+
+output_path_dir = "generated_files/flowers"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -101,7 +104,7 @@ def save_train_results(epoch_num, show=False):
 def plot_and_save_images(dims, img_label, generated_images, path, show):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
-    # generated_images = 0.5 * generated_images + 0.5
+    generated_images = 0.5 * generated_images + 0.5
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
@@ -115,31 +118,40 @@ def plot_and_save_images(dims, img_label, generated_images, path, show):
     plt.close()
 
 
+def save_model_to_checkpoint(flag=model_save_flag):
+    if flag:
+        try:
+            save_path = saver.save(sess, ckpt_path)
+            print("Model saved in path: %s" % save_path)
+        except Exception as e:
+            print("\nERROR : Could not save the model due to -  " + str(e))
+
+
 def restore_model_from_ckpt():
-    try:
-        saver.restore(sess, ckpt_path)
-        print("\nModel restored from latest checkpoint")
-    except:
-        print("could not restore model, starting from scratch...")
+    if model_restore_flag:
+        try:
+            saver.restore(sess, ckpt_path)
+            print("\nModel restored from latest checkpoint")
+        except:
+            print("could not restore model, starting from scratch...")
+
 
 # -------------------------------------- Model Train and Test -----------------------------------------------
+
+
 def load_images(path):
     # return array of images
-
     images_list = listdir(path)
-    loadedImages = []
+    loaded_images = []
     for image in images_list:
         try:
             image1 = tf.keras.preprocessing.image.load_img(path + image)
-            # image1= tf.image.resize_image_with_crop_or_pad(image1, 64, 64)
             x = tf.keras.preprocessing.image.img_to_array(image1)
-            #img = Image.open(path + image)
-            #loadedImages.append(np.asarray(img))
-            loadedImages.append(np.asarray(x))
-        except OSError :
+            loaded_images.append(np.asarray(x))
+        except OSError:
             print("error uploading image")
 
-    return loadedImages
+    return loaded_images
 
 
 def model_training():
@@ -157,9 +169,6 @@ def model_training():
     imgs = np.asarray(imgs)
     imgs = tf.image.resize_images(imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
 
-    # imgs = imgs.reshape(len(imgs), 128, 128, 4)
-    num_of_iterations = len(imgs) // batch_size
-
     # processed_images = (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
     processed_images = imgs / 255.0  # normalize the data to the range of tanH [-1,1]
     for epoch in range(epochs):
@@ -175,8 +184,8 @@ def model_training():
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
             x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
 
-            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1,  d_loss_generated_data1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
+            d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1, d_loss_generated_data1 = sess.run(
+                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data, d_loss_generated_data],
                 {x: x_batch, z: z_, training: True})
 
             if i % 100 == 0:
@@ -220,8 +229,6 @@ def model_test():
 
 # ----------------------------------------------------------------------------
 
-# The MNIST data-set
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
 
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
@@ -273,10 +280,11 @@ restore_model_from_ckpt()
 
 # Train the model
 model_training()
+save_model_to_checkpoint(True)
+
 
 # Test model performance
 model_test()
 
 # End the tf session
 sess.close()
-

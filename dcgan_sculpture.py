@@ -117,7 +117,6 @@ def plot_and_save_images(dims, img_label, generated_images, path, show=show_imag
     plt.close()
 
 
-
 def save_model_to_checkpoint():
     if model_save_flag:
         try:
@@ -209,7 +208,7 @@ def model_training():
                                   np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
                                  index=df.columns), ignore_index=True)
 
-        save_train_results(epoch, show=False)
+        save_train_results(epoch)
 
         save_model_to_checkpoint()
 
