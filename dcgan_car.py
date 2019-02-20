@@ -23,7 +23,7 @@ model_save_flag = False
 model_restore_flag = False
 show_images = False
 
-output_path_dir = "generated_files/pokemon/"
+output_path_dir = "generated_files/car/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
