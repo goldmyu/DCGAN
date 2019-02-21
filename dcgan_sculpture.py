@@ -145,7 +145,7 @@ def load_images(path):
         try:
             image1 = tf.keras.preprocessing.image.load_img(path + image)
             x = tf.keras.preprocessing.image.img_to_array(image1)
-            x = tf.image.resize_images(x, [64, 64]).eval()
+            # x = tf.image.resize_images(x, [64, 64]).eval()
             loaded_images.append(x)
         except OSError :
             print("error uploading image")
@@ -161,7 +161,7 @@ def model_training():
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
     print('\nStarting training of the DCGAN model...')
-    path = '../data-sets/sculpture/'
+    path = '../data-sets/sculpture-resized/'
 
     # your images in an array
     imgs = load_images(path)
