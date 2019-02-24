@@ -13,8 +13,9 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 128
-epochs = 10
+batch_size = 100
+num_of_iterations = 9
+epochs = 1000
 
 
 # =================================== Configurations ===================================================================
@@ -92,7 +93,7 @@ def discriminator(x, _training=True):
 # ---------------------------------------------------------------------------------------------
 
 
-def save_train_results(epoch_num, show=False):
+def save_train_results(epoch_num):
     path = output_path_dir + '/epoch' + str(epoch_num + 1) + '.png'
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
@@ -118,8 +119,8 @@ def plot_and_save_images(dims, img_label, generated_images, path, show=show_imag
     plt.close()
 
 
-def save_model_to_checkpoint():
-    if model_save_flag:
+def save_model_to_checkpoint(save_model=model_save_flag):
+    if save_model:
         try:
             save_path = saver.save(sess, ckpt_path)
             print("Model saved in path: %s" % save_path)
@@ -127,8 +128,8 @@ def save_model_to_checkpoint():
             print("\nERROR : Could not save the model due to -  " + str(e))
 
 
-def restore_model_from_ckpt():
-    if model_restore_flag:
+def restore_model_from_ckpt(restore=model_restore_flag):
+    if restore:
         try:
             saver.restore(sess, ckpt_path)
             print("\nModel restored from latest checkpoint")
@@ -141,39 +142,35 @@ def restore_model_from_ckpt():
 def load_images(path):
     # return array of images
     images_list = listdir(path)
-    loadedImages = []
+    loaded_images = []
     for image in images_list:
         try:
             image1 = tf.keras.preprocessing.image.load_img(path + image)
             x = tf.keras.preprocessing.image.img_to_array(image1)
-            loadedImages.append(np.asarray(x))
-        except OSError :
+            loaded_images.append(np.asarray(x))
+        except OSError:
             print("error uploading image")
 
-    return loadedImages
+    return loaded_images
 
 
 def model_training():
     # Training of the model
 
     train_time = time.time()
+    print('\nStarting training of the DCGAN model...')
 
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
-    print('\nStarting training of the DCGAN model...')
-
-    path = './kaggle-one-shot-pokemon/pokemon-a/'
-
     # your images in an array
+    path = '../data-sets/pokemon-a/'
     imgs = load_images(path)
     imgs = np.asarray(imgs)
     imgs = tf.image.resize_images(imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-
     # imgs = imgs.reshape(len(imgs), 128, 128, 4)
-    num_of_iterations = len(imgs) // batch_size
-    # num_of_iterations = mnist.train.num_examples // batch_size
     # imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
     processed_images = imgs/ 255.0 # normalize the data to the range of tanH [-1,1]
+
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
@@ -191,7 +188,7 @@ def model_training():
                 [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
                 {x: x_batch, z: z_, training: True})
 
-            if i % 100 == 0:
+            if i % 3 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
                       'Discriminator loss: %.3f\nGenerator loss: %.3f' %
                       (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
@@ -209,10 +206,8 @@ def model_training():
                                   np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
                                  index=df.columns), ignore_index=True)
 
-        save_train_results(epoch, show=False)
-
-        save_path = saver.save(sess, ckpt_path)
-        print("Model saved in path: %s" % save_path)
+        save_train_results(epoch)
+        save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
@@ -282,6 +277,7 @@ restore_model_from_ckpt()
 
 # Train the model
 model_training()
+save_model_to_checkpoint(True)
 
 # Test model performance
 model_test()

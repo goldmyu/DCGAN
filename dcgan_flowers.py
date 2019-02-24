@@ -187,9 +187,10 @@ def model_training():
                 {x: processed_images, z: z_, training: True})
 
         if epoch % 100 == 0:
-                print('Training stats: epoch %d/%d\n'
+            print('Training stats: epoch %d/%d\n'
                       'Discriminator loss: %.3f\nGenerator loss: %.3f' %
                       (epoch + 1, epochs,d_loss1, g_loss1))
+            save_train_results(epoch)
 
         discriminator_losses.append(d_loss1)
         discriminator_loss_real.append(d_loss_real_data1)
@@ -204,7 +205,6 @@ def model_training():
                                   np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
                                  index=df.columns), ignore_index=True)
 
-        save_train_results(epoch)
         save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))

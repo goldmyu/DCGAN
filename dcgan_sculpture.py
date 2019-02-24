@@ -13,8 +13,9 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 128
-epochs = 10
+batch_size = 100
+num_of_iterations = 17
+epochs = 50
 
 # =================================== Configurations ===================================================================
 
@@ -117,8 +118,8 @@ def plot_and_save_images(dims, img_label, generated_images, path, show=show_imag
     plt.close()
 
 
-def save_model_to_checkpoint():
-    if model_save_flag:
+def save_model_to_checkpoint(model_save=model_save_flag):
+    if model_save:
         try:
             save_path = saver.save(sess, ckpt_path)
             print("Model saved in path: %s" % save_path)
@@ -126,8 +127,8 @@ def save_model_to_checkpoint():
             print("\nERROR : Could not save the model due to -  " + str(e))
 
 
-def restore_model_from_ckpt():
-    if model_restore_flag:
+def restore_model_from_ckpt(model_restore=model_restore_flag):
+    if model_restore:
         try:
             saver.restore(sess, ckpt_path)
             print("\nModel restored from latest checkpoint")
@@ -149,7 +150,6 @@ def load_images(path):
             loaded_images.append(x)
         except OSError :
             print("error uploading image")
-
     return loaded_images
 
 
@@ -167,11 +167,9 @@ def model_training():
     imgs = load_images(path)
     imgs = np.asarray(imgs)
     # imgs = tf.image.resize_images(imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-
     # imgs = imgs.reshape(len(imgs), 128, 128, 4)
-    num_of_iterations = len(imgs) // batch_size
-
     # processed_images = (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
+
     processed_images = imgs / 255.0  # normalize the data to the range of tanH [-1,1]
     for epoch in range(epochs):
         epoch_start_time = time.time()
@@ -280,6 +278,7 @@ restore_model_from_ckpt()
 
 # Train the model
 model_training()
+save_model_to_checkpoint(True)
 
 # Test model performance
 model_test()

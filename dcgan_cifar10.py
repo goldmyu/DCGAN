@@ -14,9 +14,9 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-epochs = 20
-batch_size = 100
-num_of_iterations = 500
+epochs = 50
+batch_size = 50
+num_of_iterations = 1000
 
 # =================================== Configurations ===================================================================
 
@@ -113,14 +113,14 @@ def save_train_results(epoch_num):
 def plot_and_save_images(dims, img_label, generated_images, path, show=show_images, save=True):
     figure, subplots = plt.subplots(nrows=dims, ncols=dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
+    generated_images = 0.5 * generated_images + 0.5
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
         subplots[i, j].get_xaxis().set_visible(False)
         subplots[i, j].get_yaxis().set_visible(False)
         subplots[i, j].cla()
-        subplots[i, j].imshow(np.reshape(a=((generated_images[iterator] * 0.5) + 0.5), newshape=(64, 64, 3)))
-        # subplots[i, j].imshow(((generated_images[iterator]*0.5)+0.5))
+        subplots[i, j].imshow(np.reshape(a=generated_images[iterator], newshape=(64, 64, 3)))
     if show:
         plt.show()
     if save:
@@ -128,8 +128,8 @@ def plot_and_save_images(dims, img_label, generated_images, path, show=show_imag
     plt.close()
 
 
-def save_model_to_checkpoint():
-    if model_save_flag:
+def save_model_to_checkpoint(save_model=model_save_flag):
+    if save_model:
         try:
             save_path = saver.save(sess, ckpt_path)
             print("Model saved in path: %s" % save_path)
@@ -170,9 +170,7 @@ def model_training():
 
             # Prepare train images - Resize images from 32x32 to 64x64
             train_data_batch = np.take(x_train, indices=indices, axis=0)
-            # plot_and_save_images(4,"test",train_data_batch,"",True,False)
             train_data_batch = tf.image.resize_images(train_data_batch, [64, 64]).eval()
-            # plot_and_save_images(4, "test", train_data_batch, "", True,False)
 
             z_ = np.random.normal(0, 1, (batch_size, 1, 1, 100))  # Create random noise z for Generator
 
@@ -180,7 +178,7 @@ def model_training():
                 [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data, d_loss_generated_data],
                 {x: train_data_batch, z: z_, training: True})
 
-            if _iter % 100 == 0:
+            if _iter % 50 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
                       'Discriminator loss: %.3f\nGenerator loss: %.3f' %
                       (_iter, num_of_iterations, epoch + 1, d_loss1, g_loss1))
@@ -199,9 +197,7 @@ def model_training():
                                  index=df.columns), ignore_index=True)
 
         save_train_results(epoch)
-
         save_model_to_checkpoint()
-        # print("Model saved in path: %s" % save_path)
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
@@ -275,6 +271,7 @@ restore_model_from_ckpt()
 
 # Train the model
 model_training()
+save_model_to_checkpoint(True)
 
 # Test model performance
 model_test()
