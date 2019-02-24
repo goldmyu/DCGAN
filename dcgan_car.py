@@ -13,8 +13,8 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 128
-epochs = 10
+batch_size = 100
+epochs = 500
 
 
 # =================================== Configurations ===================================================================
@@ -92,7 +92,7 @@ def discriminator(x, _training=True):
 # ---------------------------------------------------------------------------------------------
 
 
-def save_train_results(epoch_num, show=False):
+def save_train_results(epoch_num):
     path = output_path_dir + '/epoch' + str(epoch_num + 1) + '.png'
     dims = 4
     z_ = np.random.normal(0, 1, (16, 1, 1, 100))
@@ -162,7 +162,8 @@ def model_training():
 
     print('\nStarting training of the DCGAN model...')
 
-    path = './car/'
+    path = '../data-sets/car/'
+
 
     # your images in an array
     imgs = load_images(path)
@@ -173,7 +174,7 @@ def model_training():
     num_of_iterations = len(imgs) // batch_size
     # num_of_iterations = mnist.train.num_examples // batch_size
     # imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-    processed_images = imgs/ 255.0 # normalize the data to the range of tanH [-1,1]
+    processed_images = imgs/255.0 # normalize the data to the range of tanH [-1,1]
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
@@ -209,7 +210,7 @@ def model_training():
                                   np.mean(discriminator_loss_fake), np.mean(discriminator_loss_real), epoch_runtime],
                                  index=df.columns), ignore_index=True)
 
-        save_train_results(epoch, show=False)
+        save_train_results(epoch)
 
         save_path = saver.save(sess, ckpt_path)
         print("Model saved in path: %s" % save_path)

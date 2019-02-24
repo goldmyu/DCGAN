@@ -15,7 +15,7 @@ learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 100
 num_of_iterations = 17
-epochs = 50
+epochs = 200
 
 # =================================== Configurations ===================================================================
 
@@ -105,6 +105,7 @@ def save_train_results(epoch_num):
 def plot_and_save_images(dims, img_label, generated_images, path, show=show_images):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
+    generated_images = 0.5 * generated_images + 0.5
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
