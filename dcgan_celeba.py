@@ -5,8 +5,7 @@ import tensorflow as tf
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
-from tensorflow.examples.tutorials.mnist import input_data
+from os import listdir
 
 tf.reset_default_graph()
 
@@ -14,8 +13,8 @@ tf.reset_default_graph()
 
 learning_rate = 0.0002
 momentum_beta1 = 0.5
-batch_size = 128
-epochs = 50
+batch_size = 100
+epochs = 80
 
 
 # =================================== Configurations ===================================================================
@@ -24,7 +23,7 @@ model_save_flag = False
 model_restore_flag = False
 show_images = False
 
-output_path_dir = "generated_files/mnist/"
+output_path_dir = "generated_files/celeba/"
 if not os.path.exists(output_path_dir):
     os.makedirs(output_path_dir)
 
@@ -57,7 +56,7 @@ def generator(z, _training=True):
         activation_layer4 = tf.nn.relu(batch_norm4)
 
         # fifth layer- output - a de-conv to 64x64x3 with stride of 2 and same padding and tanh activated
-        gen_conv5 = tf.layers.conv2d_transpose(activation_layer4, 1, [5, 5], strides=(2, 2), padding='SAME')
+        gen_conv5 = tf.layers.conv2d_transpose(activation_layer4, 3, [5, 5], strides=(2, 2), padding='SAME')
         activation_layer5 = tf.tanh(gen_conv5)
         return activation_layer5
 
@@ -105,13 +104,14 @@ def save_train_results(epoch_num):
 def plot_and_save_images(dims, img_label, generated_images, path, show=show_images):
     figure, subplots = plt.subplots(dims, dims, figsize=(dims, dims))
     figure.text(0.5, 0.05, img_label, ha='center')
+    generated_images = 0.5 * generated_images + 0.5
     for iterator in range(dims * dims):
         i = iterator // dims
         j = iterator % dims
         subplots[i, j].get_xaxis().set_visible(False)
         subplots[i, j].get_yaxis().set_visible(False)
         subplots[i, j].cla()
-        subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64)), cmap='gray')
+        subplots[i, j].imshow(np.reshape(generated_images[iterator], (64, 64, 3)))
     if show:
         plt.show()
     plt.savefig(path)
@@ -138,6 +138,21 @@ def restore_model_from_ckpt():
 # -------------------------------------- Model Train and Test -----------------------------------------------
 
 
+def load_images(path):
+    # return array of images
+    images_list = listdir(path)
+    loadedImages = []
+    for image in images_list:
+        try:
+            image1 = tf.keras.preprocessing.image.load_img(path + image)
+            x = tf.keras.preprocessing.image.img_to_array(image1)
+            loadedImages.append(np.asarray(x))
+        except OSError :
+            print("error uploading image")
+
+    return loadedImages
+
+
 def model_training():
     # Training of the model
 
@@ -146,9 +161,19 @@ def model_training():
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
 
     print('\nStarting training of the DCGAN model...')
-    num_of_iterations = mnist.train.num_examples // batch_size
-    imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
-    processed_images = (imgs - 0.5) / 0.5  # normalize the data to the range of tanH [-1,1]
+
+    path = '../data-sets/celeba_subset/'
+
+    # your images in an array
+    imgs = load_images(path)
+    imgs = np.asarray(imgs)
+    imgs = tf.image.resize_images(imgs, [64, 64]).eval()  # Resize images from 28x28 to 64x64
+
+    # imgs = imgs.reshape(len(imgs), 128, 128, 4)
+    num_of_iterations = len(imgs) // batch_size
+    # num_of_iterations = mnist.train.num_examples // batch_size
+    # imgs = tf.image.resize_images(mnist.train.images, [64, 64]).eval()  # Resize images from 28x28 to 64x64
+    processed_images = imgs/ 255.0 # normalize the data to the range of tanH [-1,1]
     for epoch in range(epochs):
         epoch_start_time = time.time()
         discriminator_losses = []
@@ -163,10 +188,10 @@ def model_training():
             x_batch = processed_images[i * batch_size: (i + 1) * batch_size]
 
             d_loss1, g_loss1, disc_optimizer1, gen_optimizer1d, d_loss_real_data1,  d_loss_generated_data1 = sess.run(
-                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data, d_loss_generated_data],
+                [d_loss, g_loss, disc_optimizer, gen_optimizer, d_loss_real_data ,d_loss_generated_data],
                 {x: x_batch, z: z_, training: True})
 
-            if i % 100 == 0:
+            if i % 10 == 0:
                 print('Training stats: iteration number %d/%d in epoch number %d\n'
                       'Discriminator loss: %.3f\nGenerator loss: %.3f' %
                       (i, num_of_iterations, epoch + 1, d_loss1, g_loss1))
@@ -207,12 +232,9 @@ def model_test():
 
 # ----------------------------------------------------------------------------
 
-# The MNIST data-set
-mnist = input_data.read_data_sets("MNIST_data/", one_hot=True, reshape=[])
-
 # Create place holders for variable x,z,training
 z = tf.placeholder(dtype=tf.float32, shape=[None, 1, 1, 100], name='Z')
-x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name='X')
+x = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 3], name='X')
 training = tf.placeholder(dtype=tf.bool)
 
 # Define the Generator model

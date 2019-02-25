@@ -15,7 +15,7 @@ learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 100
 num_of_iterations = 17
-epochs = 200
+epochs = 500
 
 # =================================== Configurations ===================================================================
 
