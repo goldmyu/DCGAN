@@ -212,9 +212,6 @@ def model_training():
 
         save_train_results(epoch)
 
-        # save_path = saver.save(sess, ckpt_path)
-        # print("Model saved in path: %s" % save_path)
-
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
 

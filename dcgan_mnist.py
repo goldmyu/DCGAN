@@ -186,7 +186,6 @@ def model_training():
 
         save_train_results(epoch)
 
-
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
 

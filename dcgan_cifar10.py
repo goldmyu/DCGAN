@@ -15,8 +15,7 @@ tf.reset_default_graph()
 learning_rate = 0.0002
 momentum_beta1 = 0.5
 epochs = 50
-batch_size = 50
-num_of_iterations = 1000
+batch_size = 30
 
 # =================================== Configurations ===================================================================
 
@@ -154,6 +153,8 @@ def model_training():
 
     train_time = time.time()
     df = pd.DataFrame(columns=['epoch_num', 'g_loss', 'd_loss', 'd_loss_fake', 'd_loss_real', 'epoch_runtime'])
+
+    num_of_iterations = len(x_train) // batch_size
 
     print('\nStarting training of the DCGAN model...')
     for epoch in range(epochs):
