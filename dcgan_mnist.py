@@ -15,7 +15,7 @@ tf.reset_default_graph()
 learning_rate = 0.0002
 momentum_beta1 = 0.5
 batch_size = 128
-epochs = 50
+epochs = 30
 
 
 # =================================== Configurations ===================================================================
