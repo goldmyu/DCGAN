@@ -207,7 +207,6 @@ def model_training():
                                  index=df.columns), ignore_index=True)
 
         save_train_results(epoch)
-        save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)

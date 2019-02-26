@@ -128,8 +128,8 @@ def plot_and_save_images(dims, img_label, generated_images, path, show=show_imag
     plt.close()
 
 
-def save_model_to_checkpoint(save_model=model_save_flag):
-    if save_model:
+def save_model_to_checkpoint(model_save=model_save_flag):
+    if model_save:
         try:
             save_path = saver.save(sess, ckpt_path)
             print("Model saved in path: %s" % save_path)
@@ -137,8 +137,8 @@ def save_model_to_checkpoint(save_model=model_save_flag):
             print("\nERROR : Could not save the model due to -  " + str(e))
 
 
-def restore_model_from_ckpt():
-    if model_restore_flag:
+def restore_model_from_ckpt(model_restore=model_restore_flag):
+    if model_restore:
         try:
             saver.restore(sess, ckpt_path)
             print("\nModel restored from latest checkpoint")
@@ -197,7 +197,6 @@ def model_training():
                                  index=df.columns), ignore_index=True)
 
         save_train_results(epoch)
-        save_model_to_checkpoint()
 
     print('Total Training time was: %d' % (time.time() - train_time))
     df.to_csv(output_path_dir + 'dataFrame.csv', index=False)
